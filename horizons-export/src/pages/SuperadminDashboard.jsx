@@ -15,6 +15,7 @@ import { useAuth } from '@/contexts/SupabaseAuthContext';
 
 const SuperadminDashboard = () => {
   const { user, signOut } = useAuth();
+  const [signingOut, setSigningOut] = useState(false);
   const [selectedProject, setSelectedProject] = useState(() => {
     const savedProject = sessionStorage.getItem('superadmin_selected_project')
     return savedProject ? JSON.parse(savedProject) : null;
@@ -55,7 +56,7 @@ const SuperadminDashboard = () => {
   return (
     <>
       <Helmet>
-        <title>Painel Administrativo - Carteira 4.9</title>
+        <title>Painel Administrativo - Allin Pass</title>
         <meta name="description" content="Gerencie projetos, usuários e configurações do sistema" />
       </Helmet>
       <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-indigo-50">
@@ -68,7 +69,7 @@ const SuperadminDashboard = () => {
                 </div>
                 <div>
                   <h1 className="text-xl font-bold bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">
-                    Carteira 4.9
+                    Allin Pass
                   </h1>
                   <p className="text-xs text-gray-600">Painel Administrativo</p>
                 </div>
@@ -78,7 +79,16 @@ const SuperadminDashboard = () => {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={signOut}
+                  onClick={async () => {
+                    if (signingOut) return;
+                    setSigningOut(true);
+                    try {
+                      await signOut();
+                    } finally {
+                      setSigningOut(false);
+                    }
+                  }}
+                  disabled={signingOut}
                   className="gap-2"
                 >
                   <LogOut className="w-4 h-4" />
