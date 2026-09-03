@@ -1,0 +1,10 @@
+node_modules
+teste/
+prompt/
+.env.development
+.env.production
+dist
+supabase
+.env
+hash/
+.gitignore
