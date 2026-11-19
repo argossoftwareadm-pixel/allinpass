@@ -1,0 +1,1 @@
+-- remote_scoring_log + fn_remote_scoring_search/authorize/finish/history (aplicada via MCP)

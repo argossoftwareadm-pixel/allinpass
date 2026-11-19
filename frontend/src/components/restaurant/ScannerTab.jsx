@@ -20,6 +20,7 @@ import {
 } from "@/lib/functionErrors";
 import QrScanner from "@/lib/qrScanner";
 import { supabase } from "@/lib/supabaseClient";
+import RemoteScoringPanel from "@/components/restaurant/RemoteScoringPanel";
 
 // Aceita token puro (pass_token) ou URL contendo token
 function extractPassToken(qrData) {
@@ -573,6 +574,8 @@ const ScannerTab = ({ projectId: establishmentProjectId }) => {
           </Button>
         </div>
       </motion.div>
+
+      <RemoteScoringPanel projectId={establishmentProjectId} />
     </div>
   );
 };
