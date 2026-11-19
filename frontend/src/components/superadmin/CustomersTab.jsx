@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Users, Download, Loader2, Star, ChevronDown, ChevronRight } from "lucide-react";
+import { Users, Download, Loader2, Star, ChevronDown, ChevronRight, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
 import { listCustomers } from "@/lib/api";
@@ -9,6 +9,7 @@ import { supabase } from "@/lib/supabaseClient";
 const CustomersTab = ({ projectId }) => {
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [pending, setPending] = useState([]);
 
   // Linha expandida
   const [expandedCustomerId, setExpandedCustomerId] = useState(null);
@@ -39,6 +40,17 @@ const CustomersTab = ({ projectId }) => {
   useEffect(() => {
     fetchCustomers();
   }, [fetchCustomers]);
+
+  useEffect(() => {
+    if (!projectId) return;
+    let active = true;
+    supabase.rpc("fn_list_pending_customers", { p_project_id: projectId }).then(({ data, error }) => {
+      if (active) setPending(error ? [] : Array.isArray(data) ? data : []);
+    });
+    return () => {
+      active = false;
+    };
+  }, [projectId]);
 
   // Normaliza string p/ comparações
   const normEmail = (v) => String(v ?? "").trim().toLowerCase();
@@ -367,6 +379,39 @@ const CustomersTab = ({ projectId }) => {
           </div>
         )}
       </div>
+
+      {pending.length > 0 ? (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50/60 p-6 text-card-foreground shadow-sm dark:border-amber-900/50 dark:bg-amber-950/20">
+          <h3 className="text-lg font-bold flex items-center gap-2">
+            <Clock className="h-5 w-5 text-amber-600" /> Pendentes ({pending.length})
+          </h3>
+          <p className="mb-4 text-sm text-muted-foreground">
+            Abriram o cartão e fizeram login, mas ainda não adicionaram à carteira do celular. Eles passam para a lista de clientes assim que adicionarem.
+          </p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-left">
+              <thead className="bg-muted text-xs uppercase text-muted-foreground">
+                <tr>
+                  <th className="px-4 py-2">Nome</th>
+                  <th className="px-4 py-2">Email</th>
+                  <th className="px-4 py-2">Aparelho</th>
+                  <th className="px-4 py-2">Abriu em</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pending.map((p) => (
+                  <tr key={p.user_pass_id} className="border-b border-border">
+                    <td className="px-4 py-2">{p.name || "-"}</td>
+                    <td className="px-4 py-2">{p.email}</td>
+                    <td className="px-4 py-2">{p.platform_hint || "-"}</td>
+                    <td className="px-4 py-2">{formatDateTime(p.opened_at)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : null}
     </motion.div>
   );
 };

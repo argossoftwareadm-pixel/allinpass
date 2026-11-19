@@ -1,0 +1,1 @@
+-- fn_list_pending_customers(p_project_id): passes "opened" com e-mail, sem pass instalado do mesmo e-mail (aplicada via MCP)
