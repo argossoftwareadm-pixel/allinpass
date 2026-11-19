@@ -163,15 +163,17 @@ function PlanCard({
                 <span className="line-through decoration-2">
                   De R$ {formatCurrencyBRL(limitedPromotionOriginalPrice)}/mês
                 </span>
-                <span
-                  className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${
-                    plan.highlighted
-                      ? 'bg-amber-300 text-amber-950'
-                      : 'bg-amber-500 text-white'
-                  }`}
-                >
-                  {limitedPromotion.audienceLabel}
-                </span>
+                {limitedPromotion.audienceLabel ? (
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${
+                      plan.highlighted
+                        ? 'bg-amber-300 text-amber-950'
+                        : 'bg-amber-500 text-white'
+                    }`}
+                  >
+                    {limitedPromotion.audienceLabel}
+                  </span>
+                ) : null}
               </div>
               <div className="flex flex-wrap items-end gap-x-1 gap-y-0.5">
                 <span className={`pb-1 text-sm ${plan.highlighted ? 'text-purple-100' : 'text-gray-500'}`}>

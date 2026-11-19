@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
-import { MessageCircle } from 'lucide-react';
+import { GraduationCap, MessageCircle } from 'lucide-react';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
 import DashboardShell from '@/components/dashboard/DashboardShell';
 import ScannerTab from '@/components/restaurant/ScannerTab';
@@ -19,11 +19,21 @@ import BillingSuspendedState from '@/components/restaurant/dashboard/BillingSusp
 import NoProjectSignupState from '@/components/restaurant/dashboard/NoProjectSignupState';
 import TrialExpiredBillingState from '@/components/restaurant/dashboard/TrialExpiredBillingState';
 import WalletConfigTab from '@/components/superadmin/WalletConfigTab';
+import OnboardingTour, { resolveTarget } from '@/components/restaurant/dashboard/OnboardingTour';
+import { supabase } from '@/lib/supabaseClient';
+import {
+  ONBOARDING_TOUR_VERSION,
+  buildOnboardingTourSteps,
+  hasCompletedOnboardingTour,
+  isRecentAccount,
+  markOnboardingTourDoneLocally,
+} from '@/lib/onboardingTour';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { useToast } from '@/components/ui/use-toast';
 import {
   ALLOWED_TABS,
   DASHBOARD_TABS,
+  IMPERSONATION_HIDDEN_TABS,
   NOTIFICATION_SUBTABS,
   REWARD_SUBTABS,
   SUPPORT_WHATSAPP_URL,
@@ -32,8 +42,10 @@ import { usePaidSignupRecovery } from '@/hooks/usePaidSignupRecovery';
 import { useProjectName } from '@/hooks/useProjectName';
 import { useRestaurantBilling } from '@/hooks/useRestaurantBilling';
 
-const RestaurantDashboard = () => {
-  const { user, projectId, signOut } = useAuth();
+const RestaurantDashboard = ({ impersonatedProjectId = null, impersonationExitHref = '/admin' }) => {
+  const { user, projectId: ownProjectId, signOut } = useAuth();
+  const projectId = impersonatedProjectId || ownProjectId;
+  const isImpersonating = !!impersonatedProjectId;
   const { toast } = useToast();
   const [signingOut, setSigningOut] = useState(false);
   const [billingSuspensionDismissed, setBillingSuspensionDismissed] = useState(false);
@@ -208,22 +220,78 @@ const RestaurantDashboard = () => {
     }
   }, [activeNotificationTab, defaultNotificationTab, notificationSubTabs]);
 
+  const visibleTabs = useMemo(
+    () => (isImpersonating ? DASHBOARD_TABS.filter((tab) => !IMPERSONATION_HIDDEN_TABS.has(tab.value)) : DASHBOARD_TABS),
+    [isImpersonating],
+  );
+
+  useEffect(() => {
+    if (isImpersonating && IMPERSONATION_HIDDEN_TABS.has(activeTab)) setActiveTab('kpis');
+  }, [activeTab, isImpersonating]);
+
   const navItems = useMemo(() => (
-    DASHBOARD_TABS.map((tab) => {
+    visibleTabs.map((tab) => {
       if (tab.value === 'notifications') {
         return { ...tab, children: notificationSubTabs };
       }
 
       return tab;
     })
-  ), [notificationSubTabs]);
+  ), [notificationSubTabs, visibleTabs]);
 
   const navGroups = useMemo(() => [
     {
       label: 'Projeto',
       items: navItems,
     },
+    {
+      label: 'Ajuda',
+      items: [{ value: 'tutorial', label: 'Tutorial', icon: GraduationCap }],
+    },
   ], [navItems]);
+
+  const [tourOpen, setTourOpen] = useState(false);
+  const [tourSteps, setTourSteps] = useState([]);
+
+  const openTour = () => {
+    const isMobile = typeof window !== 'undefined' && window.matchMedia('(max-width: 1023px)').matches;
+    const fullName = String(user?.user_metadata?.full_name || user?.user_metadata?.name || '').trim();
+    setTourSteps(buildOnboardingTourSteps({
+      firstName: fullName.split(/\s+/)[0] || '',
+      isMobile,
+      onOpenWallet: () => handleTabChange('wallet'),
+      resolveTarget,
+    }));
+    setTourOpen(true);
+  };
+
+  const closeTour = () => {
+    setTourOpen(false);
+    markOnboardingTourDoneLocally(user);
+    const doneKey = `onboarding_tour_${ONBOARDING_TOUR_VERSION}_done`;
+    if (!isImpersonating && user && !user.user_metadata?.[doneKey]) {
+      supabase.auth.updateUser({ data: { [doneKey]: true } }).catch(() => {});
+    }
+  };
+
+  const shouldAutoStartTour = !!(
+    projectId
+    && !isImpersonating
+    && memberRole === 'owner'
+    && !billingLoading
+    && !trialBillingBlocked
+    && !canceledBillingBlocked
+    && !isBillingSuspended
+    && isRecentAccount(user)
+    && !hasCompletedOnboardingTour(user)
+  );
+
+  useEffect(() => {
+    if (!shouldAutoStartTour || tourOpen) return undefined;
+    const timer = window.setTimeout(() => openTour(), 1200);
+    return () => window.clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shouldAutoStartTour]);
 
   const activeSubItem = activeTab === 'notifications'
     ? activeNotificationTab
@@ -232,6 +300,11 @@ const RestaurantDashboard = () => {
       : null;
 
   const handleDashboardNavigate = (value, subValue) => {
+    if (value === 'tutorial') {
+      openTour();
+      return;
+    }
+
     if (value === 'notifications') {
       if (!subValue) return;
       handleNotificationSubTabChange(subValue);
@@ -353,6 +426,15 @@ const RestaurantDashboard = () => {
           projectId={projectId}
         />
 
+        {isImpersonating ? (
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            <span>
+              Você está vendo o painel do cliente <strong>{projectDisplayName || 'selecionado'}</strong> como superadmin. Alterações feitas aqui valem para o cliente. Scanner, notificações e visitas ficam só com a equipe do estabelecimento.
+            </span>
+            <a href={impersonationExitHref} className="font-semibold underline">Voltar ao superadmin</a>
+          </div>
+        ) : null}
+
         {!projectId ? (
           <NoProjectSignupState
             actionLoading={signupActionLoading}
@@ -446,7 +528,7 @@ const RestaurantDashboard = () => {
           />
         ) : null}
 
-        <div className="group fixed bottom-5 right-5 z-40 flex items-center">
+        <div className="group fixed bottom-5 left-5 z-40 flex items-center lg:left-[calc(var(--dashboard-sidebar-width,18rem)+1.25rem)]">
           <a
             href={SUPPORT_WHATSAPP_URL}
             target="_blank"
@@ -457,11 +539,13 @@ const RestaurantDashboard = () => {
             <MessageCircle className="h-7 w-7" />
           </a>
 
-          <div className="pointer-events-none absolute bottom-full right-0 z-50 mb-3 w-56 rounded-xl border border-border bg-popover p-3 text-left text-popover-foreground shadow-xl opacity-0 transition duration-75 group-hover:opacity-100 group-focus-within:opacity-100">
+          <div className="pointer-events-none absolute bottom-full left-0 z-50 mb-3 w-56 rounded-xl border border-border bg-popover p-3 text-left text-popover-foreground shadow-xl opacity-0 transition duration-75 group-hover:opacity-100 group-focus-within:opacity-100">
             <p className="text-sm font-semibold">Suporte pelo WhatsApp</p>
             <p className="mt-1 text-xs text-muted-foreground">Precisa de ajuda? Fale com a nossa equipe!</p>
           </div>
         </div>
+
+        <OnboardingTour open={tourOpen} steps={tourSteps} onClose={closeTour} />
       </DashboardShell>
     </>
   );

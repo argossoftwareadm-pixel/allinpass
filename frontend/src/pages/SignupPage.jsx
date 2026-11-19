@@ -1,3 +1,4 @@
+import { getStoredAffiliateRef, getStoredMarketingSource } from '@/lib/marketingAttribution';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
@@ -81,6 +82,7 @@ function SignupPage() {
     () => normalizeAffiliateRef(
       searchParams.get('promo') || searchParams.get('ref')
         || existingCustomerSignupContext?.affiliateRef
+        || getStoredAffiliateRef()
         || authSession?.user?.user_metadata?.affiliate_ref
         || '',
     ),
@@ -468,6 +470,7 @@ function SignupPage() {
         planCode: signupContext.planCode,
         affiliateRef: signupAffiliateRef,
       });
+      const marketingSource = getStoredMarketingSource();
       const { data, error } = await supabase.auth.signUp({
         email: signupContext.email,
         password: formData.password,
@@ -477,6 +480,7 @@ function SignupPage() {
             plan_code: signupContext.planCode,
             plan_key: selectedPlanKey,
             affiliate_ref: signupAffiliateRef,
+            ...(marketingSource ? { marketing_source: marketingSource } : {}),
           },
           emailRedirectTo,
         },

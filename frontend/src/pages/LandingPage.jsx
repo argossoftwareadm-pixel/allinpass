@@ -1,3 +1,4 @@
+import { loadPricingPromotion } from '@/lib/pricingPromotion';
 import React, { useEffect, useRef, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { Link } from 'react-router-dom';
@@ -42,18 +43,11 @@ import {
 } from '@/lib/subscriptionPlans';
 import PlanCard from '@/components/landing/PlanCard';
 
-const SUPPORT_MESSAGE = 'Olá, preciso de suporte no Allin Pass.';
+const SUPPORT_MESSAGE = 'Olá! Quero saber mais sobre a Allin Pass.';
 const SUPPORT_WHATSAPP_URL =
   import.meta.env.VITE_RESTAURANT_SUPPORT_WHATSAPP_URL ||
-  `https://wa.me/?text=${encodeURIComponent(SUPPORT_MESSAGE)}`;
+  `https://wa.me/5531996538600?text=${encodeURIComponent(SUPPORT_MESSAGE)}`;
 
-const LIMITED_FIRST_100_PROMOTION = {
-  enabled: true,
-  label: 'Promo limitada',
-  discountLabel: '50% OFF',
-  audienceLabel: '100 primeiros',
-  originalPriceMultiplier: 1.5,
-};
 
 const fadeUp = {
   hidden: { opacity: 0, y: 24 },
@@ -168,7 +162,7 @@ const Logo = () => (
 );
 
 const FloatingContactButton = () => (
-  <div className="group fixed bottom-5 right-5 z-40 flex items-center">
+  <div className="group fixed bottom-5 left-5 z-40 flex items-center">
     <a
       href={SUPPORT_WHATSAPP_URL}
       target="_blank"
@@ -180,7 +174,7 @@ const FloatingContactButton = () => (
       <MessageCircle className="h-7 w-7" />
     </a>
 
-    <div className="pointer-events-none absolute bottom-full right-0 z-50 mb-3 w-max rounded-xl border border-slate-200 bg-white px-3 py-2 text-left text-slate-900 shadow-xl opacity-0 transition duration-75 group-hover:opacity-100 group-focus-within:opacity-100">
+    <div className="pointer-events-none absolute bottom-full left-0 z-50 mb-3 w-max rounded-xl border border-slate-200 bg-white px-3 py-2 text-left text-slate-900 shadow-xl opacity-0 transition duration-75 group-hover:opacity-100 group-focus-within:opacity-100">
       <p className="text-sm font-semibold">Fale conosco</p>
     </div>
   </div>
@@ -660,7 +654,7 @@ const HowItWorks = () => {
   );
 };
 
-const Pricing = ({ plans, affiliateOffer = null }) => {
+const Pricing = ({ plans, affiliateOffer = null, limitedPromotion = null }) => {
   const affiliateRef = affiliateOffer?.valid ? affiliateOffer.code : '';
   const affiliateDiscountPercent = affiliateOffer?.valid
     ? formatAffiliateDiscountPercent(affiliateOffer)
@@ -686,15 +680,20 @@ const Pricing = ({ plans, affiliateOffer = null }) => {
           <motion.p variants={fadeUp} className="mt-4 text-lg text-gray-600">
             Comece pequeno, escale quando quiser. Sem fidelidade, sem multas, sem surpresas.
           </motion.p>
-          <motion.div
-            variants={fadeUp}
-            className="mt-5 inline-flex flex-wrap items-center justify-center gap-2 rounded-full bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-900 ring-1 ring-amber-200"
-          >
-            <BadgePercent className="h-4 w-4" />
-            <span>
-              {LIMITED_FIRST_100_PROMOTION.discountLabel} para os {LIMITED_FIRST_100_PROMOTION.audienceLabel}.
-            </span>
-          </motion.div>
+          {limitedPromotion?.enabled ? (
+            <motion.div
+              variants={fadeUp}
+              initial="hidden"
+              animate="show"
+              className="mt-5 inline-flex flex-wrap items-center justify-center gap-2 rounded-full bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-900 ring-1 ring-amber-200"
+            >
+              <BadgePercent className="h-4 w-4" />
+              <span>
+                {limitedPromotion.discountLabel}
+                {limitedPromotion.audienceLabel ? ` para os ${limitedPromotion.audienceLabel}.` : ' por tempo limitado.'}
+              </span>
+            </motion.div>
+          ) : null}
           {affiliateOffer?.valid ? (
             <motion.div
               variants={fadeUp}
@@ -726,7 +725,7 @@ const Pricing = ({ plans, affiliateOffer = null }) => {
                 plan={p}
                 ctaTo={buildSignupPath(p.key, { promo: affiliateRef })}
                 affiliateOffer={p.type === 'paid' ? affiliateOffer : null}
-                limitedPromotion={p.type === 'paid' ? LIMITED_FIRST_100_PROMOTION : null}
+                limitedPromotion={p.type === 'paid' ? limitedPromotion : null}
                 onCtaClick={() => {
                   trackStandard('InitiateCheckout', {
                     value: Number(p.price) || 0,
@@ -972,12 +971,23 @@ const LandingPage = () => {
   const [plans, setPlans] = useState(subscriptionPlans);
   const [affiliateOffer, setAffiliateOffer] = useState({ valid: false, code: '', discountBps: 0 });
   const [privacyOpen, setPrivacyOpen] = useState(false);
+  const [limitedPromotion, setLimitedPromotion] = useState(null);
   const viewContentFiredRef = useRef(false);
   const scrollMilestonesRef = useRef(new Set());
   const { toast } = useToast();
 
   useEffect(() => {
     initPixelIfConsented();
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    loadPricingPromotion().then((promotion) => {
+      if (mounted) setLimitedPromotion(promotion);
+    });
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -1099,7 +1109,7 @@ const LandingPage = () => {
           <TrustBar />
           <Features />
           <HowItWorks />
-          <Pricing plans={plans} affiliateOffer={affiliateOffer} />
+          <Pricing plans={plans} affiliateOffer={affiliateOffer} limitedPromotion={limitedPromotion} />
           <FAQ />
           <FinalCTA />
         </main>

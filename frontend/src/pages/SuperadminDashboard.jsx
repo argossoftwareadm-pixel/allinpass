@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
-import { Users, Wallet, Settings, LayoutDashboard, Gauge, ShieldCheck, CreditCard } from 'lucide-react';
+import { Users, Wallet, Settings, LayoutDashboard, Gauge, ShieldCheck, CreditCard, Tag, ShoppingBag } from 'lucide-react';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
 import DashboardShell from '@/components/dashboard/DashboardShell';
 import ProjectsTab from '@/components/superadmin/ProjectsTab';
@@ -13,6 +13,8 @@ import FinancialPlansTab from '@/components/superadmin/FinancialPlansTab';
 import UsageConfigTab from '@/components/superadmin/UsageConfigTab';
 import AdminTab from '@/components/superadmin/AdminTab';
 import AffiliatesTab from '@/components/superadmin/AffiliatesTab';
+import PlansPricingTab from '@/components/superadmin/PlansPricingTab';
+import NuvemshopTab from '@/components/superadmin/NuvemshopTab';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { useToast } from '@/components/ui/use-toast';
 import {
@@ -128,6 +130,7 @@ const SuperadminDashboard = () => {
     if (isSuperadmin) {
       tabs.push(
         { value: 'financeiro', label: 'Financeiro', icon: CreditCard, disabled: false },
+        { value: 'planos', label: 'Planos e preços', icon: Tag, disabled: false },
       );
     }
 
@@ -136,7 +139,10 @@ const SuperadminDashboard = () => {
     }
 
     if (isSuperadmin) {
-      tabs.push({ value: 'affiliates', label: 'Afiliados', icon: Users, disabled: false });
+      tabs.push(
+        { value: 'affiliates', label: 'Afiliados', icon: Users, disabled: false },
+        { value: 'nuvemshop', label: 'Nuvemshop', icon: ShoppingBag, disabled: false },
+      );
     }
 
     tabs.push({ value: 'projects', label: 'Projetos', icon: Settings, disabled: false });
@@ -279,6 +285,11 @@ const SuperadminDashboard = () => {
                 <FinancialPlansTab />
               </TabsContent>
             )}
+            {isSuperadmin && (
+              <TabsContent value="planos" className="mt-0">
+                <PlansPricingTab />
+              </TabsContent>
+            )}
             {canAccessKpiMembersAndCustomers && (
               <TabsContent value="admins" className="mt-0">
                 <AdminTab />
@@ -289,11 +300,17 @@ const SuperadminDashboard = () => {
                 <AffiliatesTab />
               </TabsContent>
             )}
+            {isSuperadmin && (
+              <TabsContent value="nuvemshop" className="mt-0">
+                <NuvemshopTab />
+              </TabsContent>
+            )}
             <TabsContent value="projects" className="mt-0">
               <ProjectsTab
                 onSelectProject={handleSelectProject}
                 canManageProject={canManageProject}
                 canDeleteProjects={canDeleteProject(role)}
+                isSuperadmin={isSuperadmin}
               />
             </TabsContent>
           </Tabs>

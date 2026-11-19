@@ -59,6 +59,9 @@ const EMPTY_COUPON_FORM = {
   status: 'active',
   maxUses: '',
   validUntil: '',
+  commissionMonths: '',
+  receivesMarketingLeads: false,
+  secondMonthBonus: false,
 };
 const PROMOTIONAL_CODE_PATTERN = /^[a-z0-9]{5,10}$/;
 
@@ -526,6 +529,9 @@ const AffiliatesTab = () => {
       status: sellerCoupon.status === 'inactive' ? 'inactive' : 'active',
       maxUses: sellerCoupon.maxUses || '',
       validUntil: sellerCoupon.validUntil ? String(sellerCoupon.validUntil).slice(0, 10) : '',
+      commissionMonths: sellerCoupon.commissionMonths || '',
+      receivesMarketingLeads: !!sellerCoupon.receivesMarketingLeads,
+      secondMonthBonus: !!sellerCoupon.secondMonthBonus,
     } : {
       ...EMPTY_COUPON_FORM,
       sellerId: seller.id,
@@ -557,6 +563,9 @@ const AffiliatesTab = () => {
       status: promotionalCode.status === 'inactive' ? 'inactive' : 'active',
       maxUses: promotionalCode.maxUses || '',
       validUntil: promotionalCode.validUntil ? String(promotionalCode.validUntil).slice(0, 10) : '',
+      commissionMonths: promotionalCode.commissionMonths || '',
+      receivesMarketingLeads: !!promotionalCode.receivesMarketingLeads,
+      secondMonthBonus: !!promotionalCode.secondMonthBonus,
     });
     setActivePromotionalCode(promotionalCode);
     setNegativeMarginAcknowledged(false);
@@ -798,6 +807,11 @@ const AffiliatesTab = () => {
     status: couponForm.status,
     maxUses: couponForm.maxUses ? Number(couponForm.maxUses) : null,
     validUntil: couponForm.validUntil || null,
+    commissionMonths: (sellerCoupon || couponForm.sellerId) && couponForm.commissionMonths
+      ? Number(couponForm.commissionMonths)
+      : null,
+    receivesMarketingLeads: !!((sellerCoupon || couponForm.sellerId) && couponForm.receivesMarketingLeads),
+    secondMonthBonus: !!((sellerCoupon || couponForm.sellerId) && couponForm.secondMonthBonus),
     duration: 'first_month',
     marginWarningAcknowledged: negativeMarginAcknowledged,
   });
@@ -1422,6 +1436,19 @@ const AffiliatesTab = () => {
                           </td>
                           <td className="px-5 py-4 text-muted-foreground">
                             {formatRateBps(promotionalCode.commissionBps)}
+                            {promotionalCode.sellerId && promotionalCode.secondMonthBonus && (
+                              <span className="block text-xs">+ 100% da 2ª mensalidade</span>
+                            )}
+                            {promotionalCode.sellerId && (
+                              <span className="block text-xs">
+                                {promotionalCode.commissionMonths
+                                  ? `por ${promotionalCode.commissionMonths} ${promotionalCode.commissionMonths === 1 ? 'mês' : 'meses'}`
+                                  : 'sem limite de prazo'}
+                              </span>
+                            )}
+                            {promotionalCode.receivesMarketingLeads && (
+                              <span className="mt-1 inline-block rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">Marketing</span>
+                            )}
                           </td>
                           <td className="px-5 py-4 text-muted-foreground">
                             {formatDate(promotionalCode.validUntil)}
@@ -2011,6 +2038,52 @@ const AffiliatesTab = () => {
                       />
                     </div>
                   </div>
+                </div>
+
+                <label className="flex items-start gap-2 rounded-lg border border-border p-3 text-sm">
+                  <Checkbox
+                    id="coupon-second-month"
+                    checked={!!couponForm.secondMonthBonus}
+                    onCheckedChange={(checked) => handleCouponFormChange('secondMonthBonus', !!checked)}
+                    disabled={submitting || (formMode.startsWith('coupon') && !couponForm.sellerId)}
+                  />
+                  <span>
+                    <span className="font-medium text-foreground">Pagar também 100% da 2ª mensalidade</span>
+                    <span className="mt-1 block text-xs text-muted-foreground">
+                      Ligado: além da comissão em %, o afiliado recebe o valor inteiro do plano quando o cliente paga a 2ª mensalidade (uma única vez). Para pagar só a 2ª mensalidade, deixe a comissão em 0%.
+                    </span>
+                  </span>
+                </label>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="coupon-commission-months">Comissão paga por (meses)</Label>
+                    <Input
+                      id="coupon-commission-months"
+                      type="number"
+                      min="1"
+                      max="120"
+                      value={couponForm.commissionMonths}
+                      onChange={(event) => handleCouponFormChange('commissionMonths', event.target.value)}
+                      disabled={submitting || (formMode.startsWith('coupon') && !couponForm.sellerId)}
+                      placeholder="Sem limite"
+                    />
+                    <p className="text-xs text-muted-foreground">Mensalidades pagas pelo cliente que geram comissão. Vale para clientes novos.</p>
+                  </div>
+                  <label className="flex items-start gap-2 rounded-lg border border-border p-3 text-sm">
+                    <Checkbox
+                      id="coupon-marketing-leads"
+                      checked={!!couponForm.receivesMarketingLeads}
+                      onCheckedChange={(checked) => handleCouponFormChange('receivesMarketingLeads', !!checked)}
+                      disabled={submitting || (formMode.startsWith('coupon') && !couponForm.sellerId)}
+                    />
+                    <span>
+                      <span className="font-medium text-foreground">Recebe os clientes do marketing</span>
+                      <span className="mt-1 block text-xs text-muted-foreground">
+                        Quem chega pelas redes sociais, e-mail ou busca do Google e assina sem cupom gera comissão para este afiliado. Só um código pode ter esta opção.
+                      </span>
+                    </span>
+                  </label>
                 </div>
 
                 {couponHasNegativeMargin && (

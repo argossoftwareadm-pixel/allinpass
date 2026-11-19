@@ -32,6 +32,9 @@ function mapPromotionalCode(code = null) {
     redeemedUses: code.redeemedUses ?? code.redeemed_uses ?? 0,
     reservedUses: code.reservedUses ?? code.reserved_uses ?? 0,
     validUntil: code.validUntil ?? code.valid_until ?? null,
+    commissionMonths: code.commissionMonths ?? code.commission_months ?? null,
+    receivesMarketingLeads: !!(code.receivesMarketingLeads ?? code.receives_marketing_leads),
+    secondMonthBonus: !!(code.secondMonthBonus ?? code.second_month_bonus),
     status: code.status,
     metadata: code.metadata || {},
     createdAt: code.createdAt ?? code.created_at,
@@ -491,6 +494,9 @@ export async function createPromotionalCode({
   duration = 'first_month',
   maxUses = null,
   validUntil = null,
+  commissionMonths = null,
+  receivesMarketingLeads = false,
+  secondMonthBonus = false,
   marginWarningAcknowledged = false,
 }) {
   const data = await invokeAffiliateAdmin({
@@ -503,6 +509,9 @@ export async function createPromotionalCode({
     duration,
     maxUses,
     validUntil,
+    commissionMonths,
+    receivesMarketingLeads,
+    secondMonthBonus,
     marginWarningAcknowledged,
   });
 
@@ -520,6 +529,9 @@ export async function updatePromotionalCode({
   duration,
   maxUses,
   validUntil,
+  commissionMonths,
+  receivesMarketingLeads,
+  secondMonthBonus,
   marginWarningAcknowledged = false,
 }) {
   const data = await invokeAffiliateAdmin({
@@ -532,6 +544,9 @@ export async function updatePromotionalCode({
     duration,
     maxUses,
     validUntil,
+    commissionMonths,
+    receivesMarketingLeads,
+    secondMonthBonus,
     marginWarningAcknowledged,
   });
 

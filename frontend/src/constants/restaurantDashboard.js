@@ -1,10 +1,12 @@
 import { BarChart3, Bell, Gift, History, ScanLine, Send, Settings2, Users, Wallet } from 'lucide-react';
 
-export const SUPPORT_MESSAGE = 'Ola, preciso de suporte no Allin Pass.';
+export const SUPPORT_MESSAGE = 'Olá, preciso de suporte no Allin Pass.';
+
+export const SUPPORT_WHATSAPP_NUMBER = '5531996538600';
 
 export const SUPPORT_WHATSAPP_URL =
   import.meta.env.VITE_RESTAURANT_SUPPORT_WHATSAPP_URL ||
-  `https://wa.me/?text=${encodeURIComponent(SUPPORT_MESSAGE)}`;
+  `https://wa.me/${SUPPORT_WHATSAPP_NUMBER}?text=${encodeURIComponent(SUPPORT_MESSAGE)}`;
 
 export const NOTIFICATION_SUBTABS = [
   { value: 'send', label: 'Enviar', icon: Send },
@@ -29,3 +31,6 @@ export const DASHBOARD_TABS = [
 ];
 
 export const ALLOWED_TABS = new Set(DASHBOARD_TABS.map((tab) => tab.value));
+
+// Abas que o superadmin não vê ao abrir o painel do cliente (operação fica com a equipe do estabelecimento).
+export const IMPERSONATION_HIDDEN_TABS = new Set(['scanner', 'notifications', 'visits']);

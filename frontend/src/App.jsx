@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
 import AuthCallback from '@/pages/AuthCallback';
 import Unauthorized from '@/pages/Unauthorized';
@@ -50,6 +50,18 @@ const isAuthReturnUrl = () => {
   const hashParams = new URLSearchParams(hash);
 
   return hasAuthReturnParams(searchParams) || hasAuthReturnParams(hashParams);
+};
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// Superadmin abre o painel de um estabelecimento como se fosse o cliente.
+const SuperadminClientPanel = () => {
+  const { role } = useAuth();
+  const { projectId } = useParams();
+  if (role !== 'superadmin' || !UUID_PATTERN.test(String(projectId || ''))) {
+    return <Navigate to="/admin" replace />;
+  }
+  return <RestaurantDashboard key={projectId} impersonatedProjectId={projectId} impersonationExitHref="/admin" />;
 };
 
 const HomeRoute = () => {
@@ -142,6 +154,7 @@ export default function App() {
         <Route element={<ProtectedLayout />}>
           <Route path="/app" element={<AuthRedirect />} />
           <Route path="/admin" element={<SuperadminDashboard />} />
+          <Route path="/admin/cliente/:projectId" element={<SuperadminClientPanel />} />
           <Route path="/org" element={<RestaurantDashboard />} />
         </Route>
 

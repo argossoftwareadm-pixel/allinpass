@@ -114,10 +114,37 @@ function normalizeDetail(payload) {
   };
 }
 
+async function getProjectRevenueTotals() {
+  try {
+    const { data, error } = await supabase.rpc('get_superadmin_project_revenue_totals');
+    if (error) throw error;
+    const payload = camelize(unwrapRpcPayload(data, 'get_superadmin_project_revenue_totals'));
+    const rows = Array.isArray(payload) ? payload : payload ? [payload] : [];
+    return new Map(rows.filter((row) => row?.projectId).map((row) => [row.projectId, row]));
+  } catch (error) {
+    console.warn('[superadmin-finance] receita total indisponivel', error);
+    return new Map();
+  }
+}
+
 export async function getSuperadminFinancialOverview() {
-  const { data, error } = await supabase.rpc('get_superadmin_financial_plan_overview');
+  const [{ data, error }, revenueTotals] = await Promise.all([
+    supabase.rpc('get_superadmin_financial_plan_overview'),
+    getProjectRevenueTotals(),
+  ]);
   if (error) throw error;
-  return normalizeOverview(unwrapRpcPayload(data, 'get_superadmin_financial_plan_overview'));
+  const overview = normalizeOverview(unwrapRpcPayload(data, 'get_superadmin_financial_plan_overview'));
+  overview.projects = overview.projects.map((project) => {
+    const totals = revenueTotals.get(project.projectId);
+    return {
+      ...project,
+      totalPaidCents: Number(totals?.totalPaidCents || 0),
+      paidCount: Number(totals?.paidCount || 0),
+      firstPaidAt: totals?.firstPaidAt || null,
+      lastPaidAt: totals?.lastPaidAt || null,
+    };
+  });
+  return overview;
 }
 
 export async function getSuperadminProjectFinancialDetail(projectId) {

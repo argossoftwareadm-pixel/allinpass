@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useDeferredValue, useMemo, useRef } from 'react';
-import { Plus, Edit, Trash2, Eye, ArrowRight, Search, X, ChevronLeft, ChevronRight, SlidersHorizontal, ArrowUpDown } from 'lucide-react';
+import { Plus, Edit, Trash2, Eye, ArrowRight, Search, X, ChevronLeft, ChevronRight, SlidersHorizontal, ArrowUpDown, ExternalLink, Gift } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,6 +16,7 @@ import { listProjects, createProject, updateProject, deleteProject, uploadProjec
 import { getSuperadminFinancialOverview } from '@/lib/superadminFinance';
 import { fetchSubscriptionPlans } from '@/lib/subscriptionPlans';
 import { cn } from '@/lib/utils';
+import { grantProjectCourtesy, revokeProjectCourtesy } from '@/lib/superadminBilling';
 
 const MIN_PROJECT_SKELETON_CARDS = 6;
 const PROJECT_PAGE_SIZE_OPTIONS = [15, 30, 50, 100];
@@ -305,7 +307,7 @@ function ProjectCardsSkeleton({ count }) {
     );
 }
 
-const ProjectCard = ({ project, onSelect, onEdit, onDelete, canManage, canDelete, subscriptionInfoAvailable }) => {
+const ProjectCard = ({ project, onSelect, onEdit, onDelete, canManage, canDelete, subscriptionInfoAvailable, onOpenClientPanel = null, onCourtesy = null }) => {
     const projectName = project.name || '(Sem nome)';
     const handleSelect = () => {
         if (canManage) onSelect(project);
@@ -359,6 +361,29 @@ const ProjectCard = ({ project, onSelect, onEdit, onDelete, canManage, canDelete
                         {canDelete && (
                             <Button variant="ghost" size="icon" onClick={handleDelete} aria-label="Excluir projeto">
                                 <Trash2 className="h-4 w-4 text-red-500" />
+                            </Button>
+                        )}
+                        {onOpenClientPanel && (
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={(event) => { event.stopPropagation(); onOpenClientPanel(project); }}
+                                aria-label="Abrir painel do cliente"
+                                title="Abrir painel do cliente"
+                            >
+                                <ExternalLink className="h-4 w-4 text-purple-600" />
+                            </Button>
+                        )}
+                        {onCourtesy && (
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="gap-1.5 border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+                                onClick={(event) => { event.stopPropagation(); onCourtesy(project); }}
+                                title="Liberar sem pagamento"
+                            >
+                                <Gift className="h-4 w-4" />
+                                Liberar grátis
                             </Button>
                         )}
                     </div>
@@ -619,7 +644,97 @@ const ProjectFormModal = ({ project, isOpen, onClose, onSave }) => {
     );
 };
 
-const ProjectsTab = ({ onSelectProject, canManageProject = () => true, canDeleteProjects = true }) => {
+const COURTESY_PLAN_OPTIONS = [
+    { value: 'starter', label: 'Starter' },
+    { value: 'pro', label: 'Pro' },
+    { value: 'premium', label: 'Premium' },
+];
+
+function CourtesyDialog({ project, onClose, onChanged }) {
+    const { toast } = useToast();
+    const [planCode, setPlanCode] = useState('pro');
+    const [until, setUntil] = useState('');
+    const [saving, setSaving] = useState(false);
+
+    useEffect(() => {
+        setPlanCode('pro');
+        setUntil('');
+    }, [project?.id]);
+
+    const handleGrant = async (event) => {
+        event.preventDefault();
+        if (!project) return;
+        setSaving(true);
+        try {
+            const untilIso = until ? new Date(`${until}T23:59:59`).toISOString() : null;
+            await grantProjectCourtesy({ projectId: project.id, planCode, until: untilIso });
+            toast({
+                title: 'Projeto liberado',
+                description: `${project.name || 'Projeto'} está com o plano ${planCode} sem cobrança${until ? ` até ${until.split('-').reverse().join('/')}` : ' (sem prazo)'}.`,
+            });
+            onChanged?.();
+            onClose();
+        } catch (error) {
+            toast({ title: 'Não foi possível liberar', description: error.message, variant: 'destructive' });
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleRevoke = async () => {
+        if (!project) return;
+        setSaving(true);
+        try {
+            await revokeProjectCourtesy({ projectId: project.id });
+            toast({ title: 'Cortesia encerrada', description: 'O cliente volta a precisar de um plano pago.' });
+            onChanged?.();
+            onClose();
+        } catch (error) {
+            toast({ title: 'Não foi possível encerrar', description: error.message, variant: 'destructive' });
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    return (
+        <Dialog open={!!project} onOpenChange={(open) => { if (!open) onClose(); }}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Liberar sem pagamento</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleGrant} className="space-y-4">
+                    <p className="text-sm text-muted-foreground">
+                        Libera <strong>{project?.name || 'o projeto'}</strong> com um plano pago, sem cobrança, para demonstração ou cortesia. Não conta como receita. Ao fim do prazo, o acesso é bloqueado e o cliente precisa assinar.
+                    </p>
+                    <div className="space-y-2">
+                        <Label>Plano liberado</Label>
+                        <Select value={planCode} onValueChange={setPlanCode} disabled={saving}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                                {COURTESY_PLAN_OPTIONS.map((option) => (
+                                    <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="courtesy-until">Liberado até</Label>
+                        <Input id="courtesy-until" type="date" value={until} onChange={(event) => setUntil(event.target.value)} disabled={saving} />
+                        <p className="text-xs text-muted-foreground">Deixe em branco para liberar sem prazo (até você encerrar).</p>
+                    </div>
+                    <DialogFooter className="gap-2 sm:justify-between">
+                        <Button type="button" variant="outline" onClick={handleRevoke} disabled={saving}>Encerrar cortesia</Button>
+                        <Button type="submit" disabled={saving}>{saving ? 'Salvando...' : 'Liberar'}</Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+const ProjectsTab = ({ onSelectProject, canManageProject = () => true, canDeleteProjects = true, isSuperadmin = false }) => {
+    const navigate = useNavigate();
+    const [courtesyProject, setCourtesyProject] = useState(null);
     const [projects, setProjects] = useState([]);
     const [loading, setLoading] = useState(true);
     const [subscriptionInfoAvailable, setSubscriptionInfoAvailable] = useState(false);
@@ -790,6 +905,7 @@ const ProjectsTab = ({ onSelectProject, canManageProject = () => true, canDelete
 
     return (
         <div ref={projectsStartRef} className="space-y-6">
+            <CourtesyDialog project={courtesyProject} onClose={() => setCourtesyProject(null)} onChanged={fetchProjects} />
             <div className="flex justify-between items-center">
                 <h2 className="text-2xl font-bold">Projetos</h2>
                 <Button onClick={() => { setCurrentProject(null); setIsModalOpen(true); }} className="gap-2 bg-gradient-to-r from-purple-600 to-indigo-600">
@@ -825,6 +941,8 @@ const ProjectsTab = ({ onSelectProject, canManageProject = () => true, canDelete
                             canManage={canManageProject(project)}
                             canDelete={canDeleteProjects}
                             subscriptionInfoAvailable={subscriptionInfoAvailable}
+                            onOpenClientPanel={isSuperadmin ? (p) => navigate(`/admin/cliente/${p.id}`) : null}
+                            onCourtesy={isSuperadmin ? (p) => setCourtesyProject(p) : null}
                         />
                     ))}
                 </div>

@@ -1,3 +1,4 @@
+import { getStoredMarketingSource } from '@/lib/marketingAttribution';
 import { supabase } from '@/lib/supabaseClient';
 import {
   getFunctionErrorCode,
@@ -350,6 +351,7 @@ export async function startPaidSignupCheckout({
       establishmentName,
       planCode,
       affiliateRef,
+      marketingSource: getStoredMarketingSource(),
     },
   });
 

@@ -5,6 +5,9 @@ import App from '@/App';
 import '@/index.css';
 import { AuthProvider } from '@/contexts/SupabaseAuthContext';
 import AppErrorBoundary from '@/components/app/AppErrorBoundary';
+import { captureMarketingAttribution } from '@/lib/marketingAttribution';
+
+captureMarketingAttribution();
 
 const MODULE_RELOAD_KEY = '__module_reload_last_attempt_at';
 const MODULE_RELOAD_COOLDOWN_MS = 60_000;

@@ -751,6 +751,7 @@ function ProjectRevenueCell({ project }) {
   return (
     <div className="space-y-1.5">
       <MoneyLine label="Mensalidade" value={project.mrrActiveCents} />
+      <MoneyLine label="Total pago" value={project.totalPaidCents} />
       <MoneyLine label="Excedente" value={project.totalOverageCents} tone="warning" />
       <MoneyLine label="Em risco" value={project.revenueAtRiskCents} tone="danger" />
     </div>
@@ -815,8 +816,9 @@ function ProjectCycleRevenueCell({ project }) {
         </div>
       </div>
 
-      <div className="grid min-w-0 grid-cols-3 gap-2 rounded-md bg-muted/40 px-3 py-3">
+      <div className="grid min-w-0 grid-cols-2 gap-2 rounded-md bg-muted/40 px-3 py-3 sm:grid-cols-4">
         <RevenueMetric label="Mensal" value={project.mrrActiveCents} />
+        <RevenueMetric label="Total pago" value={project.totalPaidCents} />
         <RevenueMetric label="Exced." value={project.totalOverageCents} tone="warning" />
         <RevenueMetric label="Risco" value={project.revenueAtRiskCents} tone="danger" />
       </div>
@@ -1056,7 +1058,19 @@ function FinancialProjectDrawer({ open, onOpenChange, project }) {
                     info={HELP_TEXT.notifications}
                   />
                 </div>
-                <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <DrawerMetric
+                    label="Receita total gerada"
+                    value={formatCurrencyFromCents(selectedProject?.totalPaidCents)}
+                    info="Soma de tudo que o cliente já pagou (mensalidades e excedentes), desde que o registro de pagamentos foi ativado. Estornos ficam de fora."
+                  />
+                  <DrawerMetric
+                    label="Pagamentos recebidos"
+                    value={`${Number(selectedProject?.paidCount || 0)}${selectedProject?.lastPaidAt ? ` · último em ${formatDate(selectedProject.lastPaidAt)}` : ''}`}
+                    info="Quantidade de cobranças pagas registradas para este cliente."
+                  />
+                </div>
+                <div className="mt-3 grid gap-3 sm:grid-cols-3">
                   <DrawerMetric label="Mensalidade contratada" value={formatCurrencyFromCents(selectedProject?.basePriceCents)} info={HELP_TEXT.contractedMonthlyFee} />
                   <DrawerMetric label="Cobrança excedente" value={formatCurrencyFromCents(currentCycle?.totalOverageCents ?? selectedProject?.totalOverageCents)} info={HELP_TEXT.projectedExcessRevenue} />
                   <DrawerMetric label="Receita potencial do ciclo" value={formatCurrencyFromCents(selectedProject?.potentialCycleRevenueCents)} info={HELP_TEXT.potentialCycleRevenue} />
