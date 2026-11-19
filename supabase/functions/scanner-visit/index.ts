@@ -370,6 +370,33 @@ Deno.serve(async (req) => {
       auth: { persistSession: false, autoRefreshToken: false },
     });
 
+    // 2b) quem lança precisa ser da equipe deste estabelecimento (ou superadmin)
+    {
+      const { data: membership, error: memberErr } = await sbAdmin
+        .from("project_members")
+        .select("user_id")
+        .eq("project_id", projectId)
+        .eq("user_id", userData.user.id)
+        .limit(1)
+        .maybeSingle();
+
+      let allowed = !memberErr && Boolean(membership);
+      if (!allowed) {
+        const { data: isSuper } = await sbAuth.rpc("is_superadmin");
+        allowed = isSuper === true;
+      }
+
+      if (!allowed) {
+        return new Response(
+          JSON.stringify({
+            error: "forbidden",
+            message: "Você não faz parte da equipe deste estabelecimento.",
+          }),
+          { status: 403, headers: { "Content-Type": "application/json", ...corsHeaders(origin) } },
+        );
+      }
+    }
+
     // 3) busca user_pass pelo token (✅ inclui google_object_id)
     const { data: upRows, error: upErr } = await sbAdmin
       .from("user_passes")
