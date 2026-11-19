@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
-import { Gift, GraduationCap, MessageCircle } from 'lucide-react';
+import { Gift, GraduationCap, MessageCircle, ShoppingBag } from 'lucide-react';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
 import DashboardShell from '@/components/dashboard/DashboardShell';
 import ScannerTab from '@/components/restaurant/ScannerTab';
@@ -10,6 +10,8 @@ import CustomersTab from '@/components/superadmin/CustomersTab';
 import MembersTab from '@/components/superadmin/MembersTab';
 import VisitsTab from '@/components/restaurant/VisitsTab';
 import ReferralProgramTab from '@/components/restaurant/ReferralProgramTab';
+import OnlineStoreTab from '@/components/restaurant/OnlineStoreTab';
+import { supabase } from '@/lib/supabaseClient';
 import NotificationsDashboard from '@/components/restaurant/NotificationsDashboard';
 import RewardsTab from '@/components/restaurant/RewardsTab';
 import BillingDashboardDialog from '@/components/restaurant/dashboard/BillingDashboardDialog';
@@ -21,7 +23,6 @@ import NoProjectSignupState from '@/components/restaurant/dashboard/NoProjectSig
 import TrialExpiredBillingState from '@/components/restaurant/dashboard/TrialExpiredBillingState';
 import WalletConfigTab from '@/components/superadmin/WalletConfigTab';
 import OnboardingTour, { resolveTarget } from '@/components/restaurant/dashboard/OnboardingTour';
-import { supabase } from '@/lib/supabaseClient';
 import {
   ONBOARDING_TOUR_VERSION,
   buildOnboardingTourSteps,
@@ -240,10 +241,26 @@ const RestaurantDashboard = ({ impersonatedProjectId = null, impersonationExitHr
     })
   ), [notificationSubTabs, visibleTabs]);
 
+  const [hasOnlineStore, setHasOnlineStore] = useState(false);
+  useEffect(() => {
+    if (!projectId) {
+      setHasOnlineStore(false);
+      return undefined;
+    }
+    let active = true;
+    supabase.rpc('fn_project_nuvemshop_panel', { p_project_id: projectId, p_days: 1 }).then(({ data, error }) => {
+      if (!active || error || !data) return;
+      setHasOnlineStore(Boolean(data.enabled) || (Array.isArray(data.stores) && data.stores.length > 0));
+    });
+    return () => {
+      active = false;
+    };
+  }, [projectId]);
+
   const navGroups = useMemo(() => [
     {
       label: 'Projeto',
-      items: navItems,
+      items: hasOnlineStore ? [...navItems, { value: 'loja', label: 'Loja online', icon: ShoppingBag }] : navItems,
     },
     {
       label: 'Ajuda',
@@ -252,7 +269,7 @@ const RestaurantDashboard = ({ impersonatedProjectId = null, impersonationExitHr
         { value: 'tutorial', label: 'Tutorial', icon: GraduationCap },
       ],
     },
-  ], [navItems]);
+  ], [navItems, hasOnlineStore]);
 
   const [tourOpen, setTourOpen] = useState(false);
   const [tourSteps, setTourSteps] = useState([]);
@@ -494,6 +511,9 @@ const RestaurantDashboard = ({ impersonatedProjectId = null, impersonationExitHr
               </TabsContent>
               <TabsContent value="members" className="mt-0">
                 <MembersTab projectId={projectId} canManageMembers={memberRole === 'owner'} />
+              </TabsContent>
+              <TabsContent value="loja" className="mt-0">
+                {activeTab === 'loja' ? <OnlineStoreTab projectId={projectId} /> : null}
               </TabsContent>
               <TabsContent value="indicacao" className="mt-0">
                 {activeTab === 'indicacao' ? <ReferralProgramTab projectId={projectId} /> : null}

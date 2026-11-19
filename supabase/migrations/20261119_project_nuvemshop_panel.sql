@@ -1,0 +1,1 @@
+-- fn_project_nuvemshop_panel(p_project_id, p_days): painel 'Loja online' do estabelecimento (aplicada via MCP)

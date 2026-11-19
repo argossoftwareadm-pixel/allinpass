@@ -30,7 +30,7 @@ export const DASHBOARD_TABS = [
   { value: 'members', label: 'Membros', icon: Users },
 ];
 
-export const ALLOWED_TABS = new Set([...DASHBOARD_TABS.map((tab) => tab.value), 'indicacao']);
+export const ALLOWED_TABS = new Set([...DASHBOARD_TABS.map((tab) => tab.value), 'indicacao', 'loja']);
 
 // Abas que o superadmin não vê ao abrir o painel do cliente (operação fica com a equipe do estabelecimento).
 export const IMPERSONATION_HIDDEN_TABS = new Set(['scanner']);
