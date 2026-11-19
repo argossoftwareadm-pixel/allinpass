@@ -33,6 +33,7 @@ import {
   YAxis,
 } from 'recharts';
 import { toast } from '@/components/ui/use-toast';
+import { supabase } from '@/lib/supabaseClient';
 import { getGlobalKpis, getGlobalKpisTimeseries } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -294,6 +295,62 @@ function FinancialErrorNotice({ message }) {
   );
 }
 
+function GlobalNotificationReturn() {
+  const [row, setRow] = useState(null);
+  const [days, setDays] = useState(30);
+  useEffect(() => {
+    let active = true;
+    const end = new Date();
+    const start = new Date(end.getTime() - days * 86400000);
+    supabase
+      .rpc('fn_get_notification_return_kpis', {
+        p_project_id: null,
+        p_start_date: start.toISOString(),
+        p_end_date: end.toISOString(),
+        p_window_days: 7,
+      })
+      .then(({ data, error }) => {
+        if (!active) return;
+        setRow(error ? null : Array.isArray(data) ? data[0] || null : data || null);
+      });
+    return () => {
+      active = false;
+    };
+  }, [days]);
+  if (!row) return null;
+  const items = [
+    ['Notificações enviadas', formatInteger(Number(row.notifications_sent || 0))],
+    ['Clientes notificados', formatInteger(Number(row.customers_notified || 0))],
+    ['Voltaram em até 7 dias', formatInteger(Number(row.customers_returned || 0))],
+    ['Taxa de retorno', `${Number(row.return_rate || 0).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%`],
+  ];
+  return (
+    <section className="space-y-3">
+      <div className="flex flex-wrap items-end justify-between gap-2">
+        <div>
+          <h3 className="text-lg font-bold text-foreground">Notificações x Retorno</h3>
+          <p className="text-sm text-muted-foreground">Todos os estabelecimentos: clientes notificados que visitaram em até 7 dias após a notificação.</p>
+        </div>
+        <div className="flex gap-1">
+          {[30, 90, 365].map((d) => (
+            <Button key={d} size="sm" variant={days === d ? 'default' : 'outline'} onClick={() => setDays(d)}>
+              {d === 365 ? '12 meses' : `${d} dias`}
+            </Button>
+          ))}
+        </div>
+      </div>
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {items.map(([label, value]) => (
+          <div key={label} className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+            <p className="text-sm text-muted-foreground">{label}</p>
+            <p className="mt-1 text-2xl font-bold text-foreground">{value}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 const DashboardTab = ({ showFinancialKpis = false }) => {
   const [kpis, setKpis] = useState(null);
   const [financialOverview, setFinancialOverview] = useState(null);
@@ -530,6 +587,8 @@ const DashboardTab = ({ showFinancialKpis = false }) => {
           ))}
         </div>
       </section>
+
+      {showFinancialKpis && <GlobalNotificationReturn />}
 
       {showFinancialKpis && (
         <section className="space-y-3">

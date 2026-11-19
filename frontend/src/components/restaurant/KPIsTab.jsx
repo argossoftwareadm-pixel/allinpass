@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { motion } from 'framer-motion';
 import {
+  Bell,
   Calendar as CalendarIcon,
   Link as LinkIcon,
   Loader2,
@@ -23,6 +24,7 @@ import {
   YAxis,
 } from 'recharts';
 import { getProjectAnalytics } from '@/lib/api';
+import { supabase } from '@/lib/supabaseClient';
 import { toast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -360,6 +362,47 @@ function MetricCard({ card, index, shouldAnimate = true }) {
   );
 }
 
+function NotificationReturnCard({ data }) {
+  if (!data) return null;
+  const sent = normalizeNumber(data.notifications_sent);
+  const notified = normalizeNumber(data.customers_notified);
+  const returned = normalizeNumber(data.customers_returned);
+  const rate = Number(data.return_rate || 0);
+  const windowDays = normalizeNumber(data.window_days) || 7;
+  const items = [
+    { label: 'Notificações enviadas', value: formatInteger(sent) },
+    { label: 'Clientes notificados', value: formatInteger(notified) },
+    { label: `Voltaram em até ${windowDays} dias`, value: formatInteger(returned) },
+    { label: 'Taxa de retorno', value: `${rate.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%` },
+  ];
+  return (
+    <div className="rounded-2xl border border-border bg-card p-6 text-card-foreground shadow-lg shadow-slate-950/5 dark:shadow-black/20">
+      <div className="mb-4 flex items-center gap-3">
+        <div className="rounded-xl bg-gradient-to-br from-fuchsia-500 to-purple-600 p-3">
+          <Bell className="h-6 w-6 text-white" />
+        </div>
+        <div>
+          <h3 className="font-semibold">Notificações x Retorno</h3>
+          <p className="text-xs text-muted-foreground">
+            Clientes que receberam notificação no período e registraram visita em até {windowDays} dias depois.
+          </p>
+        </div>
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {items.map((item) => (
+          <div key={item.label} className="rounded-xl bg-muted/50 p-4">
+            <p className="text-xs text-muted-foreground">{item.label}</p>
+            <p className="mt-1 text-2xl font-bold">{item.value}</p>
+          </div>
+        ))}
+      </div>
+      {sent === 0 ? (
+        <p className="mt-3 text-xs text-muted-foreground">Nenhuma notificação enviada neste período.</p>
+      ) : null}
+    </div>
+  );
+}
+
 const KPIsTab = ({ projectId }) => {
   const [stats, setStats] = useState(FALLBACK_KPIS);
   const [analyticsData, setAnalyticsData] = useState(EMPTY_ANALYTICS_DATA);
@@ -367,6 +410,7 @@ const KPIsTab = ({ projectId }) => {
   const [refreshing, setRefreshing] = useState(false);
   const [animateContent, setAnimateContent] = useState(true);
   const [period, setPeriod] = useState('30d');
+  const [notifReturn, setNotifReturn] = useState(null);
   const hasFetchedRef = useRef(false);
 
   const getDateRange = useCallback(() => {
@@ -403,6 +447,20 @@ const KPIsTab = ({ projectId }) => {
     try {
       const { start, end } = getDateRange();
       const data = await getProjectAnalytics(projectId, start, end);
+      supabase
+        .rpc('fn_get_notification_return_kpis', {
+          p_project_id: projectId,
+          p_start_date: start.toISOString(),
+          p_end_date: end.toISOString(),
+          p_window_days: 7,
+        })
+        .then(({ data: rows, error: kpiError }) => {
+          if (kpiError) {
+            setNotifReturn(null);
+            return;
+          }
+          setNotifReturn(Array.isArray(rows) ? rows[0] || null : rows || null);
+        });
       const normalizedKpis = normalizeKpis(data?.kpis);
 
       setStats(normalizedKpis);
@@ -564,6 +622,9 @@ const KPIsTab = ({ projectId }) => {
               <MetricCard key={card.title} card={card} index={index} shouldAnimate={animateContent} />
             ))}
           </div>
+
+
+          <NotificationReturnCard data={notifReturn} />
 
           <LineChartCard
             title="Evolução de Visitas no Período"

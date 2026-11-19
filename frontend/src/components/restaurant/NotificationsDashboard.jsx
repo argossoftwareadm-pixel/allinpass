@@ -8,6 +8,7 @@ import AutomationsTab from "@/components/restaurant/AutomationsTab";
 export default function NotificationsDashboard({
   activeTab = "send",
   memberRole,
+  superadminView = false,
   onTabChange,
   projectId,
 }) {
@@ -37,6 +38,11 @@ export default function NotificationsDashboard({
         </div>
       ) : (
         <div className="space-y-4">
+          {superadminView ? (
+            <div className="rounded-lg border border-sky-200 bg-sky-50 px-4 py-2 text-xs text-sky-900">
+              Modo consulta do superadmin: você vê campanhas e automações do cliente, mas o envio fica com o estabelecimento.
+            </div>
+          ) : null}
           {selectedTab === "send" && canSendNotifications ? (
             <NotificationsTab projectId={projectId} />
           ) : null}
@@ -46,7 +52,7 @@ export default function NotificationsDashboard({
               projectId={projectId}
               isStaff={isStaff}
               canCancelCampaigns={canSendNotifications}
-              sentOnly={!canSendNotifications}
+              sentOnly={!canSendNotifications && !superadminView}
             />
           ) : null}
 

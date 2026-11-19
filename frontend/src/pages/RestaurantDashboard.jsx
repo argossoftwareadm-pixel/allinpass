@@ -429,7 +429,7 @@ const RestaurantDashboard = ({ impersonatedProjectId = null, impersonationExitHr
         {isImpersonating ? (
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
             <span>
-              Você está vendo o painel do cliente <strong>{projectDisplayName || 'selecionado'}</strong> como superadmin. Alterações feitas aqui valem para o cliente. Scanner, notificações e visitas ficam só com a equipe do estabelecimento.
+              Você está vendo o painel do cliente <strong>{projectDisplayName || 'selecionado'}</strong> como superadmin. Alterações feitas aqui valem para o cliente. Notificações e visitas aparecem só para consulta; o envio e o scanner ficam com a equipe do estabelecimento.
             </span>
             <a href={impersonationExitHref} className="font-semibold underline">Voltar ao superadmin</a>
           </div>
@@ -465,7 +465,8 @@ const RestaurantDashboard = ({ impersonatedProjectId = null, impersonationExitHr
               <TabsContent value="notifications" className="mt-0">
                 <NotificationsDashboard
                   activeTab={activeNotificationTab}
-                  memberRole={billingLoading ? undefined : memberRole}
+                  memberRole={isImpersonating ? 'superadmin_view' : billingLoading ? undefined : memberRole}
+                  superadminView={isImpersonating}
                   onTabChange={handleNotificationSubTabChange}
                   projectId={projectId}
                 />
