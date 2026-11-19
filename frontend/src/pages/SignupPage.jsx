@@ -1,4 +1,4 @@
-import { getStoredAffiliateRef, getStoredMarketingSource } from '@/lib/marketingAttribution';
+import { getStoredAffiliateRef, getStoredCustomerReferralCode, getStoredMarketingSource } from '@/lib/marketingAttribution';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
@@ -471,6 +471,7 @@ function SignupPage() {
         affiliateRef: signupAffiliateRef,
       });
       const marketingSource = getStoredMarketingSource();
+      const customerReferralCode = getStoredCustomerReferralCode();
       const { data, error } = await supabase.auth.signUp({
         email: signupContext.email,
         password: formData.password,
@@ -481,6 +482,7 @@ function SignupPage() {
             plan_key: selectedPlanKey,
             affiliate_ref: signupAffiliateRef,
             ...(marketingSource ? { marketing_source: marketingSource } : {}),
+            ...(customerReferralCode ? { referral_code: customerReferralCode } : {}),
           },
           emailRedirectTo,
         },

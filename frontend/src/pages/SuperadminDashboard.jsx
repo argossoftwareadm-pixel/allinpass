@@ -15,6 +15,7 @@ import AdminTab from '@/components/superadmin/AdminTab';
 import AffiliatesTab from '@/components/superadmin/AffiliatesTab';
 import PlansPricingTab from '@/components/superadmin/PlansPricingTab';
 import NuvemshopTab from '@/components/superadmin/NuvemshopTab';
+import ReferralRewardsAdmin from '@/components/superadmin/ReferralRewardsAdmin';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { useToast } from '@/components/ui/use-toast';
 import {
@@ -298,6 +299,7 @@ const SuperadminDashboard = () => {
             {isSuperadmin && (
               <TabsContent value="affiliates" className="mt-0">
                 <AffiliatesTab />
+                <ReferralRewardsAdmin />
               </TabsContent>
             )}
             {isSuperadmin && (

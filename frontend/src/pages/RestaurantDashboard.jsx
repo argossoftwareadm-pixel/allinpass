@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
-import { GraduationCap, MessageCircle } from 'lucide-react';
+import { Gift, GraduationCap, MessageCircle } from 'lucide-react';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
 import DashboardShell from '@/components/dashboard/DashboardShell';
 import ScannerTab from '@/components/restaurant/ScannerTab';
@@ -9,6 +9,7 @@ import KPIsTab from '@/components/restaurant/KPIsTab';
 import CustomersTab from '@/components/superadmin/CustomersTab';
 import MembersTab from '@/components/superadmin/MembersTab';
 import VisitsTab from '@/components/restaurant/VisitsTab';
+import ReferralProgramTab from '@/components/restaurant/ReferralProgramTab';
 import NotificationsDashboard from '@/components/restaurant/NotificationsDashboard';
 import RewardsTab from '@/components/restaurant/RewardsTab';
 import BillingDashboardDialog from '@/components/restaurant/dashboard/BillingDashboardDialog';
@@ -246,7 +247,10 @@ const RestaurantDashboard = ({ impersonatedProjectId = null, impersonationExitHr
     },
     {
       label: 'Ajuda',
-      items: [{ value: 'tutorial', label: 'Tutorial', icon: GraduationCap }],
+      items: [
+        { value: 'indicacao', label: 'Indique e ganhe', icon: Gift },
+        { value: 'tutorial', label: 'Tutorial', icon: GraduationCap },
+      ],
     },
   ], [navItems]);
 
@@ -490,6 +494,9 @@ const RestaurantDashboard = ({ impersonatedProjectId = null, impersonationExitHr
               </TabsContent>
               <TabsContent value="members" className="mt-0">
                 <MembersTab projectId={projectId} canManageMembers={memberRole === 'owner'} />
+              </TabsContent>
+              <TabsContent value="indicacao" className="mt-0">
+                {activeTab === 'indicacao' ? <ReferralProgramTab projectId={projectId} /> : null}
               </TabsContent>
               <TabsContent value="visits" className="mt-0">
                 <VisitsTab projectId={projectId} />

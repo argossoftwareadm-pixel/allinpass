@@ -1,0 +1,4 @@
+-- Programa "Indique e ganhe" entre estabelecimentos (aplicado via MCP):
+-- tabelas customer_referral_codes / customer_referral_rewards; fn_generate_referral_code, fn_ensure_referral_code,
+-- trigger trg_project_owner_referral_code (project_members), fn_register_referral_reward + trigger em billing_subscriptions,
+-- fn_my_referral_program(project), fn_superadmin_referral_rewards(); cron 'referral-rewards-runner' (7 * * * *).

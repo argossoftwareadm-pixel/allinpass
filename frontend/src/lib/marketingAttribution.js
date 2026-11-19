@@ -4,6 +4,7 @@ import { normalizeAffiliateRef } from '@/lib/subscriptionPlans';
 // (UTM, clique pago, redes sociais/Google), enviados no início do checkout.
 const AFFILIATE_REF_STORAGE_KEY = '__allinpass_affiliate_ref_v1';
 const MARKETING_TOUCH_STORAGE_KEY = '__allinpass_marketing_touch_v1';
+const CUSTOMER_REFERRAL_STORAGE_KEY = '__allinpass_customer_referral_v1';
 const ATTRIBUTION_TTL_MS = 90 * 24 * 60 * 60 * 1000;
 const PAID_CLICK_PARAMS = ['gclid', 'gbraid', 'wbraid', 'dclid', 'msclkid'];
 const PAID_MEDIUMS = new Set(['cpc', 'ppc', 'cpm', 'paid', 'paid_social', 'paidsocial', 'paid-social', 'ads', 'ad', 'display', 'retargeting']);
@@ -91,6 +92,10 @@ export function captureMarketingAttribution({
   const affiliateRef = normalizeAffiliateRef(params.get('promo') || params.get('ref'));
   if (affiliateRef) writeEntry(AFFILIATE_REF_STORAGE_KEY, { code: affiliateRef, savedAt: now });
 
+  // Indicação de cliente AllinPass (?indicacao=codigo): o último link clicado vale.
+  const customerReferral = normalizeCustomerReferralCode(params.get('indicacao') || params.get('ind'));
+  if (customerReferral) writeEntry(CUSTOMER_REFERRAL_STORAGE_KEY, { code: customerReferral, savedAt: now });
+
   const utmSource = normalizeParam(params.get('utm_source'));
   const utmMedium = normalizeParam(params.get('utm_medium'));
   const utmCampaign = normalizeParam(params.get('utm_campaign'));
@@ -110,6 +115,15 @@ export function captureMarketingAttribution({
     first_seen_at: new Date(now).toISOString(),
     savedAt: now,
   });
+}
+
+export function normalizeCustomerReferralCode(value) {
+  const code = String(value || '').trim().toLowerCase();
+  return /^[a-z0-9]{5,12}$/.test(code) ? code : '';
+}
+
+export function getStoredCustomerReferralCode(now = Date.now()) {
+  return normalizeCustomerReferralCode(readEntry(CUSTOMER_REFERRAL_STORAGE_KEY, now)?.code || '');
 }
 
 export function getStoredAffiliateRef(now = Date.now()) {
