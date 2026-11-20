@@ -502,14 +502,80 @@ const HeroVisual = () => {
             <div className="w-7 h-7 rounded-full bg-gradient-to-br from-pink-400 to-purple-500 border-2 border-white" />
           </div>
           <div>
-            <p className="text-xs font-bold text-gray-900">+1.200</p>
-            <p className="text-[10px] text-gray-500">novos clientes</p>
+            <p className="text-xs font-bold text-gray-900">+1 ponto</p>
+            <p className="text-[10px] text-gray-500">cliente voltou hoje</p>
           </div>
         </div>
       </motion.div>
 
       <div className="absolute inset-0 -z-10 blur-3xl bg-gradient-to-br from-purple-400/30 to-indigo-400/30 rounded-full" />
     </div>
+  );
+};
+
+const TRAINING_VIDEOS = [
+  { id: 'z_A80Azcvbo', tag: 'Treinamento', title: 'Imagens do cartão', subtitle: 'Como preparar as imagens do cartão' },
+  { id: 'ly4dH3zEr28', tag: 'Treinamento', title: 'Criando o cartão', subtitle: 'Monte seu cartão de fidelidade' },
+  { id: '0wmagXUH_Ps', tag: 'Treinamento', title: 'Recompensas', subtitle: 'Configure as recompensas do programa' },
+  { id: 'tsBlIKTiGrE', tag: 'Treinamento', title: 'Notificações', subtitle: 'Envie mensagens para seus clientes' },
+  { id: 'mAiAr3lof20', tag: 'Treinamento', title: 'Automações', subtitle: 'Mensagens automáticas que trazem o cliente de volta' },
+  { id: 'Ss0MG_1aHiA', tag: 'Onde usar', title: 'Conheça o AllinPass', subtitle: 'Onde o AllinPass pode ser usado para fidelizar' },
+];
+
+const Training = () => {
+  const [active, setActive] = useState(0);
+  const video = TRAINING_VIDEOS[active];
+  return (
+    <section id="aprenda" className="scroll-mt-20 py-20 sm:py-24">
+      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-2xl text-center">
+          <p className="text-sm font-semibold uppercase tracking-wider text-purple-600">Comece por aqui</p>
+          <h2 className="mt-2 text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">Aprenda a usar o AllinPass, passo a passo</h2>
+          <p className="mt-4 text-gray-600">Assista ao treinamento na ordem e veja onde o AllinPass pode ser usado para fidelizar clientes.</p>
+        </div>
+        <div className="mt-10 grid gap-6 lg:grid-cols-[1fr_320px]">
+          <div className="overflow-hidden rounded-2xl border border-purple-100 bg-black shadow-xl shadow-purple-500/10">
+            <div className="relative w-full" style={{ paddingTop: '56.25%' }}>
+              <iframe
+                key={video.id}
+                className="absolute inset-0 h-full w-full"
+                src={`https://www.youtube-nocookie.com/embed/${video.id}`}
+                title={video.subtitle}
+                loading="lazy"
+                allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              />
+            </div>
+          </div>
+          <div className="space-y-2">
+            {TRAINING_VIDEOS.map((v, i) => (
+              <button
+                key={v.id}
+                type="button"
+                onClick={() => setActive(i)}
+                className={`flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left transition ${
+                  i === active ? 'border-purple-300 bg-purple-50' : 'border-gray-100 bg-white hover:border-purple-200'
+                }`}
+              >
+                <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold ${i === active ? 'bg-purple-600 text-white' : 'bg-purple-100 text-purple-700'}`}>{i + 1}</span>
+                <span>
+                  <span className="block text-[10px] font-semibold uppercase tracking-wider text-purple-500">{v.tag}</span>
+                  <span className="block text-sm font-semibold text-gray-900">{v.title}</span>
+                </span>
+              </button>
+            ))}
+            <a
+              href="https://www.youtube.com/playlist?list=PLOSMLIO2LU3Y"
+              target="_blank"
+              rel="noreferrer"
+              className="block pt-2 text-center text-sm font-semibold text-purple-600 hover:underline"
+            >
+              Ver o treinamento completo no YouTube →
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
   );
 };
 
@@ -874,7 +940,7 @@ const FinalCTA = () => {
             seus clientes?
           </h2>
           <p className="mt-4 text-lg text-purple-100 max-w-xl mx-auto">
-            Junte-se a centenas de estabelecimentos que já transformaram clientes em fãs com a Allin Pass.
+            Crie seu programa de fidelidade hoje e transforme clientes em fãs com a Allin Pass.
           </p>
 
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
@@ -1106,6 +1172,7 @@ const LandingPage = () => {
         <Header />
         <main>
           <Hero />
+          <Training />
           <TrustBar />
           <Features />
           <HowItWorks />

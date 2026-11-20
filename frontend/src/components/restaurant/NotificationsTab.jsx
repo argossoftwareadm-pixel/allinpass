@@ -82,6 +82,7 @@ const NotificationsTab = ({ projectId }) => {
 
   // mensagem
   const [message, setMessage] = useState("");
+  const [campaignName, setCampaignName] = useState("");
   const maxMessageLen = 200;
 
   // ✅ agendamento (agora fica na coluna do CTA)
@@ -673,7 +674,8 @@ async function handleEnqueue() {
 
     const payload = {
       projectId,
-      title: recurrence ? "Envio manual (recorrente semanal)" : sendMode === "schedule" ? "Envio manual (agendado)" : "Envio manual",
+      title: campaignName.trim()
+        || (recurrence ? "Envio manual (recorrente semanal)" : sendMode === "schedule" ? "Envio manual (agendado)" : "Envio manual"),
       message: message.trim(),
       sendMode,
       scheduledFor,
@@ -1062,6 +1064,12 @@ function handleConfirmEnqueue() {
         {/* Mensagem + envio */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
           <div className="lg:col-span-8 space-y-2">
+            <label className="text-sm font-medium text-foreground">Nome da campanha (opcional)</label>
+            <Input
+              value={campaignName}
+              onChange={(e) => setCampaignName(e.target.value.slice(0, 80))}
+              placeholder="Ex.: Happy hour de sexta — aparece nos resultados em KPIs > Notificações"
+            />
             <label className="text-sm font-medium text-foreground">Mensagem</label>
             <Textarea
               placeholder="Escreva sua mensagem aqui..."

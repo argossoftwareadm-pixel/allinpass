@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
 import { getPassDetailsBySlug } from '@/lib/api';
+import { supabase } from '@/lib/supabaseClient';
 import { Loader2, AlertTriangle, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import AddToWalletButton from '@/components/AddToWalletButton';
@@ -23,9 +24,15 @@ const PassPage = () => {
 
     const fetchPass = async () => {
       try {
-        const data = await getPassDetailsBySlug(slug);
+        // Link pelo nome do estabelecimento: leva para a página de resgate do cartão
+        const { data: shortCode } = await supabase.rpc('fn_public_resolve_slug', { p_slug: slug });
+        if (shortCode) {
+          navigate(`/claim/${encodeURIComponent(shortCode)}`, { replace: true });
+          return;
+        }
+        const data = await getPassDetailsBySlug(slug).catch(() => null);
         if (!data) {
-          throw new Error('Passe não encontrado ou inválido.');
+          throw new Error('Não encontramos este cartão. Confira o link com o estabelecimento.');
         }
         setPassData(data);
       } catch (err) {
@@ -50,7 +57,7 @@ const PassPage = () => {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-red-50 text-red-700 p-4 text-center">
         <AlertTriangle className="h-12 w-12 mb-4" />
-        <h1 className="text-2xl font-bold mb-2">Ocorreu um Erro</h1>
+        <h1 className="text-2xl font-bold mb-2">Link não encontrado</h1>
         <p className="mb-6">{error || 'Não foi possível carregar os dados do passe.'}</p>
         <Button onClick={() => navigate('/')}>
             <ArrowLeft className="mr-2 h-4 w-4"/> Voltar ao Início

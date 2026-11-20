@@ -1,0 +1,1 @@
+-- fn_public_resolve_slug(slug): link pelo nome do estabelecimento leva ao resgate do cartão (aplicada via MCP)
