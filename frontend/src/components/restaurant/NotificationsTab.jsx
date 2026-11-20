@@ -10,6 +10,11 @@ import {
   Square,
   Clock,
   Repeat,
+  ListPlus,
+  Trash2,
+  UserMinus,
+  UserPlus,
+  AlertTriangle,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -42,6 +47,8 @@ const WEEKDAY_OPTIONS = [
 ];
 
 const NotificationsTab = ({ projectId }) => {
+  // a aba de envio só aparece para o dono do estabelecimento, que também gerencia as listas
+  const canManageLists = true;
   const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
   const { toast } = useToast();
@@ -62,6 +69,13 @@ const NotificationsTab = ({ projectId }) => {
   const [segmentPreset, setSegmentPreset] = useState("none"); // none | expired | inactive | expiring_soon
   const [inactiveDays, setInactiveDays] = useState(30);
   const [expiringDays, setExpiringDays] = useState(7);
+
+  // listas de clientes e clientes em risco
+  const [customerLists, setCustomerLists] = useState([]); // [{id, name}]
+  const [listMembers, setListMembers] = useState(() => new Map()); // listId -> Set(user_pass_id)
+  const [atRiskIds, setAtRiskIds] = useState(() => new Set());
+  const [newListName, setNewListName] = useState("");
+  const [listBusy, setListBusy] = useState(false);
 
   // seleção (por user_passes.id)
   const [selectedCustomerIds, setSelectedCustomerIds] = useState(() => new Set());
@@ -131,6 +145,9 @@ const NotificationsTab = ({ projectId }) => {
     }
     if (preset === "expiring_soon") {
       return "Seu passe está prestes a expirar ⏳ Aproveite seus benefícios antes do prazo! Te esperamos hoje.";
+    }
+    if (preset === "at_risk") {
+      return "Sentimos sua falta! 💛 Faz um tempinho que você não aparece. Volte esta semana e continue juntando seus pontos.";
     }
     return "";
   }
@@ -346,8 +363,125 @@ const NotificationsTab = ({ projectId }) => {
     }
   }
 
+  async function fetchCustomerLists() {
+    if (!projectId) return;
+    const { data: lists, error } = await supabase
+      .from("customer_lists")
+      .select("id, name, created_at")
+      .eq("project_id", projectId)
+      .order("name", { ascending: true });
+    if (error) return;
+    const ids = (lists || []).map((l) => l.id);
+    const members = new Map(ids.map((id) => [id, new Set()]));
+    if (ids.length) {
+      const { data: rowsMembers } = await supabase
+        .from("customer_list_members")
+        .select("list_id, user_pass_id")
+        .in("list_id", ids);
+      (rowsMembers || []).forEach((m) => members.get(m.list_id)?.add(m.user_pass_id));
+    }
+    setCustomerLists(lists || []);
+    setListMembers(members);
+  }
+
+  async function fetchAtRisk() {
+    if (!projectId) return;
+    const { data, error } = await supabase.rpc("fn_project_at_risk_pass_ids", { p_project_id: projectId });
+    if (!error) setAtRiskIds(new Set(Array.isArray(data) ? data : []));
+  }
+
   async function refreshAll() {
-    await Promise.all([fetchCustomersWithPass(), fetchVisitsSummary(), fetchNotificationsConfig()]);
+    await Promise.all([fetchCustomersWithPass(), fetchVisitsSummary(), fetchNotificationsConfig(), fetchCustomerLists(), fetchAtRisk()]);
+  }
+
+  async function createList() {
+    const name = newListName.trim();
+    if (!name) return;
+    setListBusy(true);
+    const { data, error } = await supabase
+      .from("customer_lists")
+      .insert({ project_id: projectId, name })
+      .select("id, name")
+      .single();
+    if (error) {
+      setListBusy(false);
+      toast({
+        variant: "destructive",
+        title: "Não foi possível criar a lista",
+        description: /duplicate|unique/i.test(error.message) ? "Já existe uma lista com esse nome." : error.message,
+      });
+      return;
+    }
+    if (selectedCustomerIds.size) {
+      await supabase
+        .from("customer_list_members")
+        .insert([...selectedCustomerIds].map((id) => ({ list_id: data.id, user_pass_id: id })));
+    }
+    setNewListName("");
+    await fetchCustomerLists();
+    setListBusy(false);
+    toast({
+      title: `Lista "${name}" criada`,
+      description: selectedCustomerIds.size ? `${selectedCustomerIds.size} cliente(s) adicionados.` : "Selecione clientes na tabela e use \"Adicionar selecionados\".",
+    });
+  }
+
+  async function addSelectedToList(list) {
+    const current = listMembers.get(list.id) || new Set();
+    const toAdd = [...selectedCustomerIds].filter((id) => !current.has(id));
+    if (!toAdd.length) {
+      toast({ title: "Nada para adicionar", description: "Selecione clientes que ainda não estão na lista." });
+      return;
+    }
+    setListBusy(true);
+    const { error } = await supabase
+      .from("customer_list_members")
+      .insert(toAdd.map((id) => ({ list_id: list.id, user_pass_id: id })));
+    await fetchCustomerLists();
+    setListBusy(false);
+    toast(error
+      ? { variant: "destructive", title: "Erro ao adicionar", description: error.message }
+      : { title: `${toAdd.length} cliente(s) adicionados à lista "${list.name}"` });
+  }
+
+  async function removeSelectedFromList(list) {
+    const current = listMembers.get(list.id) || new Set();
+    const toRemove = [...selectedCustomerIds].filter((id) => current.has(id));
+    if (!toRemove.length) {
+      toast({ title: "Nada para remover", description: "Nenhum dos selecionados está nessa lista." });
+      return;
+    }
+    setListBusy(true);
+    const { error } = await supabase
+      .from("customer_list_members")
+      .delete()
+      .eq("list_id", list.id)
+      .in("user_pass_id", toRemove);
+    await fetchCustomerLists();
+    setListBusy(false);
+    toast(error
+      ? { variant: "destructive", title: "Erro ao remover", description: error.message }
+      : { title: `${toRemove.length} cliente(s) removidos da lista "${list.name}"` });
+  }
+
+  async function deleteList(list) {
+    setListBusy(true);
+    const { error } = await supabase.from("customer_lists").delete().eq("id", list.id);
+    if (segmentPreset === `list:${list.id}`) setSegmentPreset("none");
+    await fetchCustomerLists();
+    setListBusy(false);
+    toast(error
+      ? { variant: "destructive", title: "Erro ao excluir lista", description: error.message }
+      : { title: `Lista "${list.name}" excluída` });
+  }
+
+  function selectGroup(preset, ids) {
+    setSegmentPreset(preset);
+    const suggested = buildSuggestedMessage(preset);
+    if (suggested && (!message.trim() || message === buildSuggestedMessage(segmentPreset))) {
+      setMessage(suggested);
+    }
+    setSelectedCustomerIds(new Set(ids));
   }
 
   useEffect(() => {
@@ -386,6 +520,11 @@ const NotificationsTab = ({ projectId }) => {
         if (!hay.includes(q)) return false;
       }
 
+      if (segmentPreset === "at_risk") return atRiskIds.has(p?.id);
+      if (segmentPreset.startsWith("list:")) {
+        return Boolean(listMembers.get(segmentPreset.slice(5))?.has(p?.id));
+      }
+
       const expiresAt = toDate(p?.expires_at);
 
       if (segmentPreset === "expired") return expiresAt ? expiresAt < now : false;
@@ -408,7 +547,7 @@ const NotificationsTab = ({ projectId }) => {
 
       return true;
     });
-  }, [rows, searchText, segmentPreset, inactiveDays, expiringDays, lastVisitByUserPassId]);
+  }, [rows, searchText, segmentPreset, inactiveDays, expiringDays, lastVisitByUserPassId, atRiskIds, listMembers]);
 
   const visibleCustomerIds = useMemo(() => new Set(filteredRows.map((p) => p.id)), [filteredRows]);
 
@@ -743,6 +882,83 @@ function handleConfirmEnqueue() {
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Clientes em risco + listas */}
+        <div className="space-y-3 rounded-lg border border-border bg-muted/30 p-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm font-semibold text-foreground">Grupos:</span>
+            <Button
+              type="button"
+              variant={segmentPreset === "at_risk" ? "default" : "outline"}
+              className="gap-2"
+              onClick={() => selectGroup("at_risk", rows.filter((p) => atRiskIds.has(p.id)).map((p) => p.id))}
+              title="Clientes frequentes que estão sumidos há mais que o dobro do intervalo normal deles"
+            >
+              <AlertTriangle className="w-4 h-4" />
+              Clientes em risco ({rows.filter((p) => atRiskIds.has(p.id)).length})
+            </Button>
+            {customerLists.map((list) => {
+              const members = listMembers.get(list.id) || new Set();
+              const active = segmentPreset === `list:${list.id}`;
+              return (
+                <Button
+                  key={list.id}
+                  type="button"
+                  variant={active ? "default" : "outline"}
+                  onClick={() => selectGroup(`list:${list.id}`, rows.filter((p) => members.has(p.id)).map((p) => p.id))}
+                >
+                  {list.name} ({members.size})
+                </Button>
+              );
+            })}
+          </div>
+
+          {canManageLists ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <Input
+                value={newListName}
+                onChange={(e) => setNewListName(e.target.value.slice(0, 60))}
+                placeholder="Nova lista (ex.: Clientes do almoço)"
+                className="max-w-xs"
+                onKeyDown={(e) => { if (e.key === "Enter") createList(); }}
+              />
+              <Button type="button" variant="outline" className="gap-2" onClick={createList} disabled={listBusy || !newListName.trim()}>
+                <ListPlus className="w-4 h-4" />
+                Criar lista{selectedCount ? ` com ${selectedCount} selecionado(s)` : ""}
+              </Button>
+              {segmentPreset.startsWith("list:") ? (() => {
+                const list = customerLists.find((l) => `list:${l.id}` === segmentPreset);
+                if (!list) return null;
+                return (
+                  <Button type="button" variant="ghost" className="gap-2 text-destructive" onClick={() => deleteList(list)} disabled={listBusy}>
+                    <Trash2 className="w-4 h-4" />
+                    Excluir lista "{list.name}"
+                  </Button>
+                );
+              })() : null}
+            </div>
+          ) : null}
+
+          {canManageLists && customerLists.length > 0 && selectedCount > 0 ? (
+            <div className="flex flex-wrap items-center gap-2 text-sm">
+              <span className="text-muted-foreground">Com os {selectedCount} selecionado(s):</span>
+              {customerLists.map((list) => (
+                <div key={list.id} className="flex items-center gap-1 rounded-md border border-border bg-background px-2 py-1">
+                  <span className="font-medium">{list.name}</span>
+                  <Button type="button" size="sm" variant="ghost" className="h-7 px-2" title="Adicionar selecionados" onClick={() => addSelectedToList(list)} disabled={listBusy}>
+                    <UserPlus className="w-4 h-4" />
+                  </Button>
+                  <Button type="button" size="sm" variant="ghost" className="h-7 px-2" title="Remover selecionados" onClick={() => removeSelectedFromList(list)} disabled={listBusy}>
+                    <UserMinus className="w-4 h-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          ) : null}
+          <p className="text-xs text-muted-foreground">
+            Crie listas como "Almoço" ou "Happy hour": busque e marque os clientes na tabela abaixo e adicione à lista. Para notificar um grupo, clique nele e escreva a mensagem.
+          </p>
         </div>
 
         {/* Seleção */}

@@ -1,0 +1,1 @@
+-- customer_lists, customer_list_members (+RLS) e fn_project_at_risk_pass_ids (aplicada via MCP)
