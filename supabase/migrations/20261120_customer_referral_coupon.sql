@@ -1,0 +1,1 @@
+-- fn_prepare_referral_coupon(code): cria cupom 10% 1º mês (campanha, sem comissão) para link de indicação de cliente (aplicada via MCP)

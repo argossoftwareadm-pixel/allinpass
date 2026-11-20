@@ -36,7 +36,7 @@ const ReferralRewardsAdmin = () => {
           </h3>
           <p className="text-sm text-muted-foreground">
             Todo estabelecimento tem um link próprio. Quando o indicado vira assinante pago, o indicador ganha crédito na próxima fatura
-            (mensalidade grátis, ou o valor do plano indicado se for menor).
+            (mensalidade grátis, ou o valor do plano indicado se for menor). Quem é indicado ganha 10% no primeiro mês.
           </p>
         </div>
         <Button variant="outline" size="sm" onClick={load} disabled={loading}>

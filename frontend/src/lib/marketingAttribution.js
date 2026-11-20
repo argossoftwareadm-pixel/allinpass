@@ -1,4 +1,5 @@
 import { normalizeAffiliateRef } from '@/lib/subscriptionPlans';
+import { supabase } from '@/lib/supabaseClient';
 
 // Guarda por 90 dias o código de afiliado (?promo / ?ref) e a primeira origem de marketing
 // (UTM, clique pago, redes sociais/Google), enviados no início do checkout.
@@ -94,7 +95,14 @@ export function captureMarketingAttribution({
 
   // Indicação de cliente AllinPass (?indicacao=codigo): o último link clicado vale.
   const customerReferral = normalizeCustomerReferralCode(params.get('indicacao') || params.get('ind'));
-  if (customerReferral) writeEntry(CUSTOMER_REFERRAL_STORAGE_KEY, { code: customerReferral, savedAt: now });
+  if (customerReferral) {
+    writeEntry(CUSTOMER_REFERRAL_STORAGE_KEY, { code: customerReferral, savedAt: now });
+    // Quem chega por indicação ganha 10% no 1º mês: o mesmo código vira cupom no checkout.
+    if (!affiliateRef) writeEntry(AFFILIATE_REF_STORAGE_KEY, { code: customerReferral, savedAt: now });
+    try {
+      supabase.rpc('fn_prepare_referral_coupon', { p_code: customerReferral }).then(() => {}, () => {});
+    } catch (_) {}
+  }
 
   const utmSource = normalizeParam(params.get('utm_source'));
   const utmMedium = normalizeParam(params.get('utm_medium'));

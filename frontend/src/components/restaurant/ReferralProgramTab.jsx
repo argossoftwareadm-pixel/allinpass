@@ -56,7 +56,7 @@ const ReferralProgramTab = ({ projectId }) => {
 
   if (!data) return null;
   const rewards = Array.isArray(data.rewards) ? data.rewards : [];
-  const shareText = `Uso o AllinPass para o cartão fidelidade digital do meu negócio. Conheça e assine por aqui: ${data.link}`;
+  const shareText = `Uso o AllinPass para o cartão fidelidade digital do meu negócio. Assinando por este link você ganha 10% de desconto no primeiro mês: ${data.link}`;
   const totalEarned = rewards.reduce((sum, r) => sum + Number(r.reward_cents || 0), 0);
 
   return (
@@ -67,7 +67,8 @@ const ReferralProgramTab = ({ projectId }) => {
         </h2>
         <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
           Quando um negócio assinar o AllinPass pelo seu link, você ganha uma mensalidade grátis. Se o plano dele for menor que o seu, você ganha
-          um desconto no valor do plano dele. O crédito entra automaticamente na sua próxima fatura.
+          um desconto no valor do plano dele. O crédito entra automaticamente na sua próxima fatura. E quem assina pelo seu link ganha 10% de
+          desconto no primeiro mês.
         </p>
       </div>
 
