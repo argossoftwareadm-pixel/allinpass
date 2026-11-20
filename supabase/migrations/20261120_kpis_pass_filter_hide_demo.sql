@@ -1,0 +1,1 @@
+-- global KPIs sem demo; p_pass_id em fn_get_project_analytics, fn_project_kpis_extended e fn_get_notification_return_kpis (aplicada via MCP)

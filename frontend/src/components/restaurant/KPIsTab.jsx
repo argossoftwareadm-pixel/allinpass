@@ -463,6 +463,26 @@ const KPIsTab = ({ projectId }) => {
   const [period, setPeriod] = useState('30d');
   const [notifReturn, setNotifReturn] = useState(null);
   const [extended, setExtended] = useState(null);
+  const [projectPasses, setProjectPasses] = useState([]);
+  const [selectedPassId, setSelectedPassId] = useState('all');
+
+  useEffect(() => {
+    if (!projectId) return undefined;
+    let active = true;
+    setSelectedPassId('all');
+    supabase
+      .from('passes')
+      .select('id, title, type, created_at')
+      .eq('project_id', projectId)
+      .is('deleted_at', null)
+      .order('created_at', { ascending: true })
+      .then(({ data }) => {
+        if (active) setProjectPasses(Array.isArray(data) ? data : []);
+      });
+    return () => {
+      active = false;
+    };
+  }, [projectId]);
   const [kpiSection, setKpiSection] = useState(() => {
     try {
       return sessionStorage.getItem('restaurant_kpi_section') || 'overview';
@@ -562,12 +582,14 @@ const KPIsTab = ({ projectId }) => {
 
     try {
       const { start, end } = getDateRange();
-      const data = await getProjectAnalytics(projectId, start, end);
+      const passFilter = selectedPassId !== 'all' ? selectedPassId : null;
+      const data = await getProjectAnalytics(projectId, start, end, passFilter);
       supabase
         .rpc('fn_project_kpis_extended', {
           p_project_id: projectId,
           p_start: start.toISOString(),
           p_end: end.toISOString(),
+          ...(passFilter ? { p_pass_id: passFilter } : {}),
         })
         .then(({ data: ext, error: extError }) => {
           setExtended(extError ? null : ext || null);
@@ -578,6 +600,7 @@ const KPIsTab = ({ projectId }) => {
           p_start_date: start.toISOString(),
           p_end_date: end.toISOString(),
           p_window_days: 7,
+          ...(passFilter ? { p_pass_id: passFilter } : {}),
         })
         .then(({ data: rows, error: kpiError }) => {
           if (kpiError) {
@@ -635,7 +658,7 @@ const KPIsTab = ({ projectId }) => {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [projectId, getDateRange]);
+  }, [projectId, getDateRange, selectedPassId]);
 
   useEffect(() => {
     const isFirstFetch = !hasFetchedRef.current;
@@ -722,7 +745,22 @@ const KPIsTab = ({ projectId }) => {
     <div className="space-y-6">
       <div className="flex flex-wrap justify-between items-center gap-4">
         <h2 className="text-2xl font-bold">Indicadores de Performance</h2>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {projectPasses.length > 1 ? (
+            <Select value={selectedPassId} onValueChange={setSelectedPassId}>
+              <SelectTrigger className="w-[220px]">
+                <SelectValue placeholder="Cartão" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os cartões</SelectItem>
+                {projectPasses.map((pass, index) => (
+                  <SelectItem key={pass.id} value={pass.id}>
+                    {pass.title || `Cartão ${index + 1}`}{String(pass.type || '').toLowerCase() === 'value' ? ' (valor)' : ''}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : null}
           <Select value={period} onValueChange={setPeriod}>
             <SelectTrigger className="w-[220px]">
               <CalendarIcon className="w-4 h-4 mr-2" />

@@ -314,11 +314,12 @@ export async function getProjectKpisTimeseries(projectId, months) {
 	if (error) throw error; return data || [];
 }
 
-export async function getProjectAnalytics(projectId, startDate, endDate) {
+export async function getProjectAnalytics(projectId, startDate, endDate, passId = null) {
 	const { data, error } = await supabase.rpc('fn_get_project_analytics', {
 		p_project_id: projectId,
 		p_start_date: startDate.toISOString(),
 		p_end_date: endDate.toISOString(),
+		...(passId ? { p_pass_id: passId } : {}),
 	});
 	if (error) throw error;
 	const payload = coerceJsonPayload(unwrapRpcPayload(data, 'fn_get_project_analytics')) || {};
