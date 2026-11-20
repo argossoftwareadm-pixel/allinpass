@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import {
   Bell,
   Calendar as CalendarIcon,
+  SlidersHorizontal,
   Link as LinkIcon,
   Loader2,
   RefreshCw,
@@ -28,6 +29,26 @@ import { supabase } from '@/lib/supabaseClient';
 import { toast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Checkbox } from '@/components/ui/checkbox';
+
+// Blocos da aba KPIs que o cliente pode mostrar/esconder (preferência por usuário e estabelecimento)
+const KPI_BLOCKS = [
+  { group: 'Números principais', id: 'card_total_customers', label: 'Clientes totais do projeto' },
+  { group: 'Números principais', id: 'card_active_customers', label: 'Clientes ativos no período' },
+  { group: 'Números principais', id: 'card_visits', label: 'Total de visitas no período' },
+  { group: 'Números principais', id: 'card_wallet_linked', label: 'Cartões adicionados no período' },
+  { group: 'Números principais', id: 'card_wallet_active', label: 'Cartões ativos no período' },
+  { group: 'Notificações', id: 'notif_return', label: 'Notificações x retorno' },
+  { group: 'Gráficos', id: 'visits_trend', label: 'Evolução de visitas' },
+  { group: 'Gráficos', id: 'wallet_lifecycle', label: 'Instalações x remoções de cartão' },
+  { group: 'Gráficos', id: 'funnel', label: 'Funil de conversão' },
+  { group: 'Gráficos', id: 'new_vs_returning', label: 'Clientes novos vs recorrentes' },
+  { group: 'Gráficos', id: 'frequency', label: 'Distribuição de frequência' },
+  { group: 'Gráficos', id: 'weekday', label: 'Visitas por dia da semana' },
+  { group: 'Gráficos', id: 'hour', label: 'Visitas por hora do dia' },
+];
+const KPI_PREFS_LOCAL_KEY = '__allinpass_kpi_hidden_v1';
 
 const periods = {
   '7d': { label: 'Últimos 7 dias' },
@@ -411,6 +432,56 @@ const KPIsTab = ({ projectId }) => {
   const [animateContent, setAnimateContent] = useState(true);
   const [period, setPeriod] = useState('30d');
   const [notifReturn, setNotifReturn] = useState(null);
+  const [hiddenBlocks, setHiddenBlocks] = useState(() => new Set());
+  const [customizeOpen, setCustomizeOpen] = useState(false);
+  const [draftHidden, setDraftHidden] = useState(() => new Set());
+  const [savingPrefs, setSavingPrefs] = useState(false);
+
+  useEffect(() => {
+    if (!projectId) return undefined;
+    let active = true;
+    const localKey = `${KPI_PREFS_LOCAL_KEY}:${projectId}`;
+    try {
+      const cached = JSON.parse(localStorage.getItem(localKey) || '[]');
+      if (Array.isArray(cached)) setHiddenBlocks(new Set(cached));
+    } catch (_) {}
+    supabase
+      .from('kpi_preferences')
+      .select('hidden')
+      .eq('project_id', projectId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!active || !data) return;
+        const list = Array.isArray(data.hidden) ? data.hidden : [];
+        setHiddenBlocks(new Set(list));
+        try { localStorage.setItem(localKey, JSON.stringify(list)); } catch (_) {}
+      });
+    return () => {
+      active = false;
+    };
+  }, [projectId]);
+
+  const isVisible = useCallback((id) => !hiddenBlocks.has(id), [hiddenBlocks]);
+
+  const openCustomize = () => {
+    setDraftHidden(new Set(hiddenBlocks));
+    setCustomizeOpen(true);
+  };
+
+  const saveCustomize = async () => {
+    const list = [...draftHidden];
+    setSavingPrefs(true);
+    setHiddenBlocks(new Set(list));
+    try { localStorage.setItem(`${KPI_PREFS_LOCAL_KEY}:${projectId}`, JSON.stringify(list)); } catch (_) {}
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user?.id) {
+      await supabase
+        .from('kpi_preferences')
+        .upsert({ user_id: user.id, project_id: projectId, hidden: list, updated_at: new Date().toISOString() }, { onConflict: 'user_id,project_id' });
+    }
+    setSavingPrefs(false);
+    setCustomizeOpen(false);
+  };
   const hasFetchedRef = useRef(false);
 
   const getDateRange = useCallback(() => {
@@ -524,37 +595,42 @@ const KPIsTab = ({ projectId }) => {
   const cards = useMemo(() => {
     return [
       {
+        id: 'card_total_customers',
         title: 'Clientes Totais do Projeto',
         value: formatInteger(stats.total_customers),
         icon: Users,
         color: 'from-slate-500 to-gray-600',
       },
       {
+        id: 'card_active_customers',
         title: 'Clientes Ativos no Período',
         value: formatInteger(stats.active_customers_period),
         icon: Users,
         color: 'from-blue-500 to-cyan-500',
       },
       {
+        id: 'card_visits',
         title: 'Total de Visitas no Período',
         value: formatInteger(stats.visits_in_period),
         icon: TrendingUp,
         color: 'from-orange-500 to-yellow-500',
       },
       {
+        id: 'card_wallet_linked',
         title: 'Cartões Adicionados no Período',
         value: formatInteger(stats.wallet_linked),
         icon: LinkIcon,
         color: 'from-purple-500 to-pink-500',
       },
       {
+        id: 'card_wallet_active',
         title: 'Cartões Ativos no Período',
         value: formatInteger(stats.wallet_active_period),
         icon: Wallet,
         color: 'from-green-500 to-emerald-500',
       },
-    ];
-  }, [stats]);
+    ].filter((card) => isVisible(card.id));
+  }, [stats, isVisible]);
 
   const funnelData = useMemo(
     () => [
@@ -604,6 +680,10 @@ const KPIsTab = ({ projectId }) => {
               ))}
             </SelectContent>
           </Select>
+          <Button onClick={openCustomize} variant="outline" size="sm">
+            <SlidersHorizontal className="w-4 h-4 mr-2" />
+            Personalizar
+          </Button>
           <Button onClick={handleRefresh} variant="outline" size="sm" disabled={isBusy}>
             <RefreshCw className={`w-4 h-4 mr-2 ${isBusy ? 'animate-spin' : ''}`} />
             Atualizar
@@ -617,15 +697,16 @@ const KPIsTab = ({ projectId }) => {
         </div>
       ) : (
         <>
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+          {cards.length ? <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
             {cards.map((card, index) => (
               <MetricCard key={card.title} card={card} index={index} shouldAnimate={animateContent} />
             ))}
-          </div>
+          </div> : null}
 
 
-          <NotificationReturnCard data={notifReturn} />
+          {isVisible('notif_return') ? <NotificationReturnCard data={notifReturn} /> : null}
 
+          {isVisible('visits_trend') ? (
           <LineChartCard
             title="Evolução de Visitas no Período"
             data={analyticsData.visits_by_date}
@@ -635,14 +716,18 @@ const KPIsTab = ({ projectId }) => {
             height={360}
             shouldAnimate={animateContent}
           />
+          ) : null}
 
+          {isVisible('wallet_lifecycle') ? (
           <WalletLifecycleChartCard
             title="Instalações x Remoções de Wallet"
             data={walletLifecycleData}
             shouldAnimate={animateContent}
           />
+          ) : null}
 
           <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2">
+            {isVisible('funnel') ? (
             <HorizontalBarChartCard
               title="Funil de Conversão"
               data={funnelData}
@@ -652,6 +737,8 @@ const KPIsTab = ({ projectId }) => {
               yAxisWidth={190}
               shouldAnimate={animateContent}
             />
+            ) : null}
+            {isVisible('new_vs_returning') ? (
             <BarChartCard
               title="Clientes Ativos no Período: Novos vs Recorrentes"
               data={analyticsData.new_vs_returning_customers}
@@ -660,9 +747,11 @@ const KPIsTab = ({ projectId }) => {
               fill="#0ea5e9"
               shouldAnimate={animateContent}
             />
+            ) : null}
           </div>
 
           <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2">
+            {isVisible('frequency') ? (
             <BarChartCard
               title="Distribuição de Frequência"
               data={analyticsData.visit_frequency_distribution}
@@ -671,6 +760,8 @@ const KPIsTab = ({ projectId }) => {
               fill="#14b8a6"
               shouldAnimate={animateContent}
             />
+            ) : null}
+            {isVisible('weekday') ? (
             <BarChartCard
               title="Visitas por Dia da Semana"
               data={analyticsData.by_day_of_week}
@@ -678,8 +769,10 @@ const KPIsTab = ({ projectId }) => {
               name="Visitas"
               shouldAnimate={animateContent}
             />
+            ) : null}
           </div>
 
+          {isVisible('hour') ? (
           <BarChartCard
             title="Visitas por Hora do Dia"
             data={analyticsData.by_hour_of_day}
@@ -687,8 +780,49 @@ const KPIsTab = ({ projectId }) => {
             name="Visitas"
             shouldAnimate={animateContent}
           />
+          ) : null}
         </>
       )}
+
+      <Dialog open={customizeOpen} onOpenChange={setCustomizeOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Escolha o que aparece nos seus KPIs</DialogTitle>
+          </DialogHeader>
+          <div className="max-h-[60vh] space-y-4 overflow-y-auto pr-1">
+            {[...new Set(KPI_BLOCKS.map((b) => b.group))].map((group) => (
+              <div key={group}>
+                <p className="mb-2 text-xs font-semibold uppercase text-muted-foreground">{group}</p>
+                <div className="space-y-2">
+                  {KPI_BLOCKS.filter((b) => b.group === group).map((block) => (
+                    <label key={block.id} className="flex cursor-pointer items-center gap-3 text-sm">
+                      <Checkbox
+                        checked={!draftHidden.has(block.id)}
+                        onCheckedChange={(checked) => {
+                          setDraftHidden((prev) => {
+                            const next = new Set(prev);
+                            if (checked) next.delete(block.id);
+                            else next.add(block.id);
+                            return next;
+                          });
+                        }}
+                      />
+                      {block.label}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="ghost" onClick={() => setDraftHidden(new Set())}>Mostrar tudo</Button>
+            <Button onClick={saveCustomize} disabled={savingPrefs}>
+              {savingPrefs ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Salvar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

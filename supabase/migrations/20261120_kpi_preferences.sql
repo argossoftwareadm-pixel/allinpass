@@ -1,0 +1,1 @@
+-- kpi_preferences(user_id, project_id, hidden[]) + RLS (aplicada via MCP)
