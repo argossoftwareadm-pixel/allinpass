@@ -1,0 +1,1 @@
+-- fn_project_kpis_extended(project, start, end): retenção, em risco, recompensas, cartões, engajamento, cartão de valor, canais (aplicada via MCP)

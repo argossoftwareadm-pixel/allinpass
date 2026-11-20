@@ -31,22 +31,52 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
+import {
+  AtRiskPanel,
+  CampaignsPanel,
+  NearRewardPanel,
+  Panel,
+  StatGrid,
+  bestTimeData,
+  money,
+  num,
+  pct,
+} from '@/components/restaurant/kpis/ExtendedKpis';
 
 // Blocos da aba KPIs que o cliente pode mostrar/esconder (preferência por usuário e estabelecimento)
+const KPI_SECTIONS = [
+  { id: 'overview', label: 'Visão geral' },
+  { id: 'retention', label: 'Retenção' },
+  { id: 'rewards', label: 'Recompensas' },
+  { id: 'cards', label: 'Cartões' },
+  { id: 'engagement', label: 'Notificações' },
+  { id: 'value', label: 'Cartão de valor', onlyValue: true },
+];
 const KPI_BLOCKS = [
-  { group: 'Números principais', id: 'card_total_customers', label: 'Clientes totais do projeto' },
-  { group: 'Números principais', id: 'card_active_customers', label: 'Clientes ativos no período' },
-  { group: 'Números principais', id: 'card_visits', label: 'Total de visitas no período' },
-  { group: 'Números principais', id: 'card_wallet_linked', label: 'Cartões adicionados no período' },
-  { group: 'Números principais', id: 'card_wallet_active', label: 'Cartões ativos no período' },
-  { group: 'Notificações', id: 'notif_return', label: 'Notificações x retorno' },
-  { group: 'Gráficos', id: 'visits_trend', label: 'Evolução de visitas' },
-  { group: 'Gráficos', id: 'wallet_lifecycle', label: 'Instalações x remoções de cartão' },
-  { group: 'Gráficos', id: 'funnel', label: 'Funil de conversão' },
-  { group: 'Gráficos', id: 'new_vs_returning', label: 'Clientes novos vs recorrentes' },
-  { group: 'Gráficos', id: 'frequency', label: 'Distribuição de frequência' },
-  { group: 'Gráficos', id: 'weekday', label: 'Visitas por dia da semana' },
-  { group: 'Gráficos', id: 'hour', label: 'Visitas por hora do dia' },
+  { section: 'overview', id: 'card_total_customers', label: 'Clientes totais do projeto' },
+  { section: 'overview', id: 'card_active_customers', label: 'Clientes ativos no período' },
+  { section: 'overview', id: 'card_visits', label: 'Total de visitas no período' },
+  { section: 'overview', id: 'card_wallet_linked', label: 'Cartões adicionados no período' },
+  { section: 'overview', id: 'card_wallet_active', label: 'Cartões ativos no período' },
+  { section: 'overview', id: 'ov_highlights', label: 'Destaques (retorno, em risco, perto da recompensa)' },
+  { section: 'overview', id: 'channels', label: 'Pontuação a distância x no balcão' },
+  { section: 'overview', id: 'visits_trend', label: 'Evolução de visitas' },
+  { section: 'overview', id: 'weekday', label: 'Visitas por dia da semana' },
+  { section: 'overview', id: 'hour', label: 'Visitas por hora do dia' },
+  { section: 'retention', id: 'ret_summary', label: 'Taxa de retorno e intervalo entre visitas' },
+  { section: 'retention', id: 'ret_at_risk', label: 'Lista de clientes em risco' },
+  { section: 'retention', id: 'new_vs_returning', label: 'Clientes novos vs recorrentes' },
+  { section: 'retention', id: 'frequency', label: 'Distribuição de frequência' },
+  { section: 'rewards', id: 'rew_summary', label: 'Resgates, taxa de resgate e tempo até o 1º resgate' },
+  { section: 'rewards', id: 'rew_near', label: 'Lista de clientes perto da recompensa' },
+  { section: 'cards', id: 'cards_rates', label: 'Taxa de instalação e de remoção' },
+  { section: 'cards', id: 'cards_platforms', label: 'Apple x Google' },
+  { section: 'cards', id: 'wallet_lifecycle', label: 'Instalações x remoções de cartão' },
+  { section: 'cards', id: 'funnel', label: 'Funil de conversão' },
+  { section: 'engagement', id: 'notif_return', label: 'Notificações x retorno' },
+  { section: 'engagement', id: 'eng_campaigns', label: 'Resultado por campanha e automação' },
+  { section: 'engagement', id: 'eng_best_time', label: 'Melhor dia e horário para notificar' },
+  { section: 'value', id: 'value_summary', label: 'Valores creditados, resgatados e saldo' },
 ];
 const KPI_PREFS_LOCAL_KEY = '__allinpass_kpi_hidden_v1';
 
@@ -432,6 +462,21 @@ const KPIsTab = ({ projectId }) => {
   const [animateContent, setAnimateContent] = useState(true);
   const [period, setPeriod] = useState('30d');
   const [notifReturn, setNotifReturn] = useState(null);
+  const [extended, setExtended] = useState(null);
+  const [kpiSection, setKpiSection] = useState(() => {
+    try {
+      return sessionStorage.getItem('restaurant_kpi_section') || 'overview';
+    } catch (_) {
+      return 'overview';
+    }
+  });
+  useEffect(() => {
+    if (kpiSection === 'value' && extended && !extended.has_value_cards) setKpiSection('overview');
+  }, [kpiSection, extended]);
+  const changeSection = (id) => {
+    setKpiSection(id);
+    try { sessionStorage.setItem('restaurant_kpi_section', id); } catch (_) {}
+  };
   const [hiddenBlocks, setHiddenBlocks] = useState(() => new Set());
   const [customizeOpen, setCustomizeOpen] = useState(false);
   const [draftHidden, setDraftHidden] = useState(() => new Set());
@@ -518,6 +563,15 @@ const KPIsTab = ({ projectId }) => {
     try {
       const { start, end } = getDateRange();
       const data = await getProjectAnalytics(projectId, start, end);
+      supabase
+        .rpc('fn_project_kpis_extended', {
+          p_project_id: projectId,
+          p_start: start.toISOString(),
+          p_end: end.toISOString(),
+        })
+        .then(({ data: ext, error: extError }) => {
+          setExtended(extError ? null : ext || null);
+        });
       supabase
         .rpc('fn_get_notification_return_kpis', {
           p_project_id: projectId,
@@ -697,14 +751,51 @@ const KPIsTab = ({ projectId }) => {
         </div>
       ) : (
         <>
+          <div className="flex flex-wrap gap-2 rounded-xl bg-muted/50 p-1">
+            {KPI_SECTIONS.filter((sec) => !sec.onlyValue || extended?.has_value_cards).map((sec) => (
+              <button
+                key={sec.id}
+                type="button"
+                onClick={() => changeSection(sec.id)}
+                className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
+                  kpiSection === sec.id ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {sec.label}
+              </button>
+            ))}
+          </div>
+
+          {kpiSection === 'overview' ? (
+            <>
           {cards.length ? <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
             {cards.map((card, index) => (
               <MetricCard key={card.title} card={card} index={index} shouldAnimate={animateContent} />
             ))}
           </div> : null}
 
+          {isVisible('ov_highlights') && extended ? (
+            <StatGrid
+              items={[
+                { label: 'Taxa de retorno', value: pct(extended.retention?.return_rate), helper: 'Clientes ativos que já vieram 2+ vezes' },
+                { label: 'Clientes em risco', value: num(extended.retention?.at_risk_count), helper: 'Veja a lista em Retenção' },
+                { label: 'Perto da recompensa', value: num(extended.rewards?.near_count), helper: 'Faltam 1 ou 2 pontos' },
+                { label: 'Taxa de resgate', value: pct(extended.rewards?.redemption_rate), helper: 'Quem podia resgatar e resgatou' },
+              ]}
+            />
+          ) : null}
 
-          {isVisible('notif_return') ? <NotificationReturnCard data={notifReturn} /> : null}
+          {isVisible('channels') && extended && extended.channels?.remote >= 2 && extended.channels?.physical >= 2 ? (
+            <Panel title="Pontuação a distância x no balcão" subtitle="Lançamentos no período feitos sem QR Code comparados aos feitos com o cliente presente.">
+              <StatGrid
+                items={[
+                  { label: 'No balcão (scanner)', value: num(extended.channels.physical) },
+                  { label: 'A distância (sem scanner)', value: num(extended.channels.remote) },
+                  { label: 'Parcela a distância', value: pct((100 * extended.channels.remote) / (extended.channels.remote + extended.channels.physical)) },
+                ]}
+              />
+            </Panel>
+          ) : null}
 
           {isVisible('visits_trend') ? (
           <LineChartCard
@@ -718,16 +809,120 @@ const KPIsTab = ({ projectId }) => {
           />
           ) : null}
 
-          {isVisible('wallet_lifecycle') ? (
+          <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2">
+            {isVisible('weekday') ? (
+            <BarChartCard
+              title="Visitas por Dia da Semana"
+              data={analyticsData.by_day_of_week}
+              dataKey="Visitas"
+              name="Visitas"
+              shouldAnimate={animateContent}
+            />
+            ) : null}
+          {isVisible('hour') ? (
+          <BarChartCard
+            title="Visitas por Hora do Dia"
+            data={analyticsData.by_hour_of_day}
+            dataKey="Visitas"
+            name="Visitas"
+            shouldAnimate={animateContent}
+          />
+          ) : null}
+          </div>
+            </>
+          ) : null}
+
+          {kpiSection === 'retention' ? (
+            <>
+              {isVisible('ret_summary') && extended ? (
+                <StatGrid
+                  items={[
+                    { label: 'Taxa de retorno', value: pct(extended.retention?.return_rate), helper: `${num(extended.retention?.returning_customers)} de ${num(extended.retention?.active_customers)} clientes ativos já voltaram` },
+                    { label: 'Intervalo médio entre visitas', value: extended.retention?.avg_days_between_visits != null ? `${num(extended.retention.avg_days_between_visits)} dias` : '—', helper: 'De quanto em quanto tempo o cliente volta' },
+                    { label: 'Clientes em risco', value: num(extended.retention?.at_risk_count), helper: 'Sumidos há mais que o dobro do normal deles' },
+                    { label: 'Clientes ativos no período', value: num(extended.retention?.active_customers) },
+                  ]}
+                />
+              ) : null}
+              {isVisible('ret_at_risk') && extended ? <AtRiskPanel data={extended.retention} /> : null}
+              <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2">
+                {isVisible('new_vs_returning') ? (
+            <BarChartCard
+              title="Clientes Ativos no Período: Novos vs Recorrentes"
+              data={analyticsData.new_vs_returning_customers}
+              dataKey="Clientes"
+              name="Clientes"
+              fill="#0ea5e9"
+              shouldAnimate={animateContent}
+            />
+            ) : null}
+                {isVisible('frequency') ? (
+            <BarChartCard
+              title="Distribuição de Frequência"
+              data={analyticsData.visit_frequency_distribution}
+              dataKey="Clientes"
+              name="Clientes"
+              fill="#14b8a6"
+              shouldAnimate={animateContent}
+            />
+            ) : null}
+              </div>
+            </>
+          ) : null}
+
+          {kpiSection === 'rewards' ? (
+            <>
+              {isVisible('rew_summary') && extended ? (
+                <StatGrid
+                  items={[
+                    { label: 'Recompensas resgatadas', value: num(extended.rewards?.redemptions_period), helper: `${num(extended.rewards?.redeemers_period)} clientes diferentes` },
+                    { label: 'Taxa de resgate', value: pct(extended.rewards?.redemption_rate), helper: `${num(extended.rewards?.eligible_now)} podem resgatar agora e ainda não resgataram` },
+                    { label: 'Tempo até o 1º resgate', value: extended.rewards?.avg_days_to_first_redemption != null ? `${num(extended.rewards.avg_days_to_first_redemption)} dias` : '—', helper: 'Da instalação do cartão ao primeiro prêmio' },
+                    { label: 'Perto da recompensa', value: num(extended.rewards?.near_count), helper: extended.rewards?.min_points_required ? `1ª recompensa com ${extended.rewards.min_points_required} pontos` : 'Nenhuma recompensa por pontos ativa' },
+                  ]}
+                />
+              ) : null}
+              {isVisible('rew_near') && extended ? <NearRewardPanel data={extended.rewards} /> : null}
+            </>
+          ) : null}
+
+          {kpiSection === 'cards' ? (
+            <>
+              {isVisible('cards_rates') && extended ? (
+                <StatGrid
+                  items={[
+                    { label: 'Taxa de instalação', value: pct(extended.cards?.install_rate), helper: `${num(extended.cards?.installed_of_opened)} de ${num(extended.cards?.opened_period)} que abriram o cartão no período` },
+                    { label: 'Taxa de remoção', value: pct(extended.cards?.removal_rate), helper: `${num(extended.cards?.removed_period)} removeram de ${num(extended.cards?.installed_base)} cartões na carteira` },
+                  ]}
+                />
+              ) : null}
+              {isVisible('cards_platforms') && extended ? (() => {
+                const apple = Number(extended.cards?.platforms?.apple || 0);
+                const google = Number(extended.cards?.platforms?.google || 0);
+                const total = apple + google;
+                return (
+                  <Panel title="Apple x Google" subtitle="Cartões instalados hoje, por tipo de celular.">
+                    <div className="space-y-3">
+                      <div className="flex h-4 overflow-hidden rounded-full bg-muted">
+                        <div className="bg-slate-800" style={{ width: total ? `${(100 * apple) / total}%` : '0%' }} />
+                        <div className="bg-emerald-500" style={{ width: total ? `${(100 * google) / total}%` : '0%' }} />
+                      </div>
+                      <div className="flex flex-wrap gap-6 text-sm">
+                        <span><span className="mr-2 inline-block h-3 w-3 rounded-full bg-slate-800" />Apple (iPhone): <strong>{num(apple)}</strong> {total ? `(${pct((100 * apple) / total)})` : ''}</span>
+                        <span><span className="mr-2 inline-block h-3 w-3 rounded-full bg-emerald-500" />Google (Android): <strong>{num(google)}</strong> {total ? `(${pct((100 * google) / total)})` : ''}</span>
+                      </div>
+                    </div>
+                  </Panel>
+                );
+              })() : null}
+              {isVisible('wallet_lifecycle') ? (
           <WalletLifecycleChartCard
             title="Instalações x Remoções de Wallet"
             data={walletLifecycleData}
             shouldAnimate={animateContent}
           />
           ) : null}
-
-          <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2">
-            {isVisible('funnel') ? (
+              {isVisible('funnel') ? (
             <HorizontalBarChartCard
               title="Funil de Conversão"
               data={funnelData}
@@ -738,48 +933,49 @@ const KPIsTab = ({ projectId }) => {
               shouldAnimate={animateContent}
             />
             ) : null}
-            {isVisible('new_vs_returning') ? (
-            <BarChartCard
-              title="Clientes Ativos no Período: Novos vs Recorrentes"
-              data={analyticsData.new_vs_returning_customers}
-              dataKey="Clientes"
-              name="Clientes"
-              fill="#0ea5e9"
-              shouldAnimate={animateContent}
-            />
-            ) : null}
-          </div>
+            </>
+          ) : null}
 
-          <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2">
-            {isVisible('frequency') ? (
-            <BarChartCard
-              title="Distribuição de Frequência"
-              data={analyticsData.visit_frequency_distribution}
-              dataKey="Clientes"
-              name="Clientes"
-              fill="#14b8a6"
-              shouldAnimate={animateContent}
-            />
-            ) : null}
-            {isVisible('weekday') ? (
-            <BarChartCard
-              title="Visitas por Dia da Semana"
-              data={analyticsData.by_day_of_week}
-              dataKey="Visitas"
-              name="Visitas"
-              shouldAnimate={animateContent}
-            />
-            ) : null}
-          </div>
+          {kpiSection === 'engagement' ? (
+            <>
+              {isVisible('notif_return') ? <NotificationReturnCard data={notifReturn} /> : null}
+              {isVisible('eng_campaigns') && extended ? <CampaignsPanel data={extended.engagement} /> : null}
+              {isVisible('eng_best_time') && extended ? (() => {
+                const bt = bestTimeData(extended.engagement);
+                return (
+                  <>
+                    <Panel
+                      title="Melhor dia e horário para notificar"
+                      subtitle="Percentual de clientes que visitaram em até 48h depois de receber uma notificação, por dia e horário de envio (conta só dias/horários com 5+ envios)."
+                    >
+                      <div className="flex flex-wrap gap-6 text-sm">
+                        <span>Melhor dia: <strong>{bt.bestDow || 'ainda sem dados suficientes'}</strong></span>
+                        <span>Melhor horário: <strong>{bt.bestHour || 'ainda sem dados suficientes'}</strong></span>
+                      </div>
+                    </Panel>
+                    <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2">
+                      <BarChartCard title="Retorno por dia do envio" data={bt.byDow} dataKey="Retorno (%)" name="Retorno (%)" fill="#a855f7" shouldAnimate={animateContent} />
+                      <BarChartCard title="Retorno por horário do envio" data={bt.byHour} dataKey="Retorno (%)" name="Retorno (%)" fill="#ec4899" shouldAnimate={animateContent} />
+                    </div>
+                  </>
+                );
+              })() : null}
+            </>
+          ) : null}
 
-          {isVisible('hour') ? (
-          <BarChartCard
-            title="Visitas por Hora do Dia"
-            data={analyticsData.by_hour_of_day}
-            dataKey="Visitas"
-            name="Visitas"
-            shouldAnimate={animateContent}
-          />
+          {kpiSection === 'value' && extended?.has_value_cards ? (
+            <>
+              {isVisible('value_summary') && extended.value_cards ? (
+                <StatGrid
+                  items={[
+                    { label: 'Valor creditado no período', value: money(extended.value_cards.credited_cents), helper: `${num(extended.value_cards.credits_count)} créditos` },
+                    { label: 'Valor resgatado no período', value: money(extended.value_cards.redeemed_cents) },
+                    { label: 'Saldo em aberto (hoje)', value: money(extended.value_cards.outstanding_cents), helper: 'Soma dos saldos nos cartões dos clientes' },
+                    { label: 'Ticket médio por crédito', value: money(extended.value_cards.avg_ticket_cents) },
+                  ]}
+                />
+              ) : null}
+            </>
           ) : null}
         </>
       )}
@@ -790,11 +986,11 @@ const KPIsTab = ({ projectId }) => {
             <DialogTitle>Escolha o que aparece nos seus KPIs</DialogTitle>
           </DialogHeader>
           <div className="max-h-[60vh] space-y-4 overflow-y-auto pr-1">
-            {[...new Set(KPI_BLOCKS.map((b) => b.group))].map((group) => (
+            {KPI_SECTIONS.filter((sec) => !sec.onlyValue || extended?.has_value_cards).map(({ id: group, label: groupLabel }) => (
               <div key={group}>
-                <p className="mb-2 text-xs font-semibold uppercase text-muted-foreground">{group}</p>
+                <p className="mb-2 text-xs font-semibold uppercase text-muted-foreground">{groupLabel}</p>
                 <div className="space-y-2">
-                  {KPI_BLOCKS.filter((b) => b.group === group).map((block) => (
+                  {KPI_BLOCKS.filter((b) => b.section === group).map((block) => (
                     <label key={block.id} className="flex cursor-pointer items-center gap-3 text-sm">
                       <Checkbox
                         checked={!draftHidden.has(block.id)}
