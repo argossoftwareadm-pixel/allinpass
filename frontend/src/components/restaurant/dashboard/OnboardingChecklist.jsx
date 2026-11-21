@@ -1,12 +1,19 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { CheckCircle2, Circle, ChevronDown, ChevronUp, Sparkles, X } from 'lucide-react';
+import { CheckCircle2, Circle, Maximize2, Minimize2, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/lib/supabaseClient';
 import BusinessTemplateDialog from './BusinessTemplateDialog';
 
 export default function OnboardingChecklist({ projectId, projectName, canManage, onNavigate }) {
   const [status, setStatus] = useState(null);
-  const [collapsed, setCollapsed] = useState(false);
+  const minimizedKey = `allinpass_onboarding_min_${projectId}`;
+  const [collapsed, setCollapsedState] = useState(() => {
+    try { return localStorage.getItem(minimizedKey) === '1'; } catch (_) { return false; }
+  });
+  const setCollapsed = (next) => {
+    setCollapsedState(next);
+    try { localStorage.setItem(minimizedKey, next ? '1' : '0'); } catch (_) {}
+  };
   const [templateOpen, setTemplateOpen] = useState(false);
 
   const load = useCallback(async () => {
@@ -28,7 +35,8 @@ export default function OnboardingChecklist({ projectId, projectName, canManage,
 
   if (!status || status.dismissed_at) return null;
 
-  const steps = [
+  const manual = new Set(Array.isArray(status.manual_done) ? status.manual_done : []);
+  const rawSteps = [
     {
       id: 'template',
       label: 'Escolher um modelo para o seu tipo de negócio',
@@ -80,14 +88,43 @@ export default function OnboardingChecklist({ projectId, projectName, canManage,
     },
   ];
 
+  const steps = rawSteps.map((step) => ({ ...step, autoDone: step.done, done: step.done || manual.has(step.id) }));
   const doneCount = steps.filter((s) => s.done).length;
   const progress = Math.round((doneCount / steps.length) * 100);
   if (doneCount === steps.length) return null;
 
-  const dismiss = async () => {
-    await supabase.rpc('fn_project_onboarding_mark', { p_project_id: projectId, p_step: 'dismiss' });
-    load();
+  const toggleManual = async (step) => {
+    if (!canManage || step.autoDone) return;
+    const checking = !manual.has(step.id);
+    const nextManual = checking ? [...manual, step.id] : [...manual].filter((id) => id !== step.id);
+    setStatus((prev) => ({ ...prev, manual_done: nextManual }));
+    const { error } = await supabase.rpc('fn_project_onboarding_mark', {
+      p_project_id: projectId,
+      p_step: checking ? 'check' : 'uncheck',
+      p_value: step.id,
+    });
+    if (error) load();
   };
+
+  if (collapsed) {
+    return (
+      <button
+        type="button"
+        onClick={() => setCollapsed(false)}
+        title="Mostrar primeiros passos"
+        className="mb-6 flex w-full flex-wrap items-center gap-3 rounded-2xl border border-purple-200 bg-purple-50 px-4 py-2 text-left shadow-sm transition hover:border-purple-300"
+      >
+        <span className="flex items-center gap-2 text-sm font-semibold text-purple-900"><Sparkles className="h-4 w-4" /> Primeiros passos</span>
+        <span className="flex items-center gap-1">
+          {steps.map((step) => (step.done
+            ? <CheckCircle2 key={step.id} className="h-4 w-4 text-emerald-500" />
+            : <Circle key={step.id} className="h-4 w-4 text-purple-200" />))}
+        </span>
+        <span className="text-sm font-semibold text-purple-900">{doneCount}/{steps.length}</span>
+        <Maximize2 className="ml-auto h-4 w-4 text-purple-700" />
+      </button>
+    );
+  }
 
   return (
     <div className="mb-6 rounded-2xl border border-purple-200 bg-gradient-to-br from-purple-50 to-white p-5 shadow-sm">
@@ -96,24 +133,29 @@ export default function OnboardingChecklist({ projectId, projectName, canManage,
           <p className="flex items-center gap-2 font-semibold text-purple-900"><Sparkles className="h-4 w-4" /> Primeiros passos</p>
           <p className="text-sm text-muted-foreground">{doneCount} de {steps.length} concluídos. Complete para ter seu programa rodando.</p>
         </div>
-        <div className="flex items-center gap-1">
-          <Button size="sm" variant="ghost" onClick={() => setCollapsed((v) => !v)} aria-label={collapsed ? 'Mostrar passos' : 'Esconder passos'}>
-            {collapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
-          </Button>
-          {canManage ? (
-            <Button size="sm" variant="ghost" onClick={dismiss} title="Não mostrar mais" aria-label="Não mostrar mais"><X className="h-4 w-4" /></Button>
-          ) : null}
-        </div>
+        <Button size="sm" variant="ghost" onClick={() => setCollapsed(true)} title="Minimizar" aria-label="Minimizar primeiros passos">
+          <Minimize2 className="mr-1 h-4 w-4" /> Minimizar
+        </Button>
       </div>
       <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-purple-100">
         <div className="h-full rounded-full bg-purple-600 transition-all" style={{ width: `${progress}%` }} />
       </div>
+      {canManage ? <p className="mt-2 text-xs text-muted-foreground">Já fez algum passo por fora? Clique no círculo para marcar como feito.</p> : null}
       {!collapsed ? (
         <ul className="mt-4 space-y-2">
           {steps.map((step) => (
             <li key={step.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-white/70 px-3 py-2">
               <div className="flex items-start gap-3">
-                {step.done ? <CheckCircle2 className="mt-0.5 h-5 w-5 text-emerald-500" /> : <Circle className="mt-0.5 h-5 w-5 text-gray-300" />}
+                <button
+                  type="button"
+                  onClick={() => toggleManual(step)}
+                  disabled={!canManage || step.autoDone}
+                  title={step.autoDone ? 'Concluído automaticamente' : step.done ? 'Desmarcar' : 'Marcar como feito'}
+                  aria-label={step.done ? `Desmarcar: ${step.label}` : `Marcar como feito: ${step.label}`}
+                  className="mt-0.5 rounded-full transition enabled:hover:scale-110 disabled:cursor-default"
+                >
+                  {step.done ? <CheckCircle2 className="h-5 w-5 text-emerald-500" /> : <Circle className="h-5 w-5 text-gray-300 hover:text-emerald-400" />}
+                </button>
                 <div>
                   <p className={`text-sm font-medium ${step.done ? 'text-muted-foreground line-through' : ''}`}>{step.label}</p>
                   {!step.done ? <p className="text-xs text-muted-foreground">{step.helper}</p> : null}

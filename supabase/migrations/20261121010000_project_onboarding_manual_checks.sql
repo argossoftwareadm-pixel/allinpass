@@ -1,0 +1,1 @@
+-- Aplicada via MCP: project_onboarding.manual_done + passos 'check'/'uncheck' em fn_project_onboarding_mark.
