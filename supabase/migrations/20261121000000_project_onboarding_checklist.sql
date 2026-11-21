@@ -1,0 +1,2 @@
+-- Aplicada via MCP: tabela project_onboarding + fn_project_onboarding_status / fn_project_onboarding_mark
+-- (checklist de primeiros passos, modelo por tipo de negócio e material de balcão baixado).

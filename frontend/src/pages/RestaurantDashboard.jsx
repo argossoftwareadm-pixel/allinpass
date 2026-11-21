@@ -11,6 +11,8 @@ import MembersTab from '@/components/superadmin/MembersTab';
 import VisitsTab from '@/components/restaurant/VisitsTab';
 import ReferralProgramTab from '@/components/restaurant/ReferralProgramTab';
 import OnlineStoreTab from '@/components/restaurant/OnlineStoreTab';
+import MaterialsTab from '@/components/restaurant/MaterialsTab';
+import OnboardingChecklist from '@/components/restaurant/dashboard/OnboardingChecklist';
 import { supabase } from '@/lib/supabaseClient';
 import NotificationsDashboard from '@/components/restaurant/NotificationsDashboard';
 import RewardsTab from '@/components/restaurant/RewardsTab';
@@ -479,6 +481,15 @@ const RestaurantDashboard = ({ impersonatedProjectId = null, impersonationExitHr
               />
             ) : null}
 
+            {activeTab === 'kpis' ? (
+              <OnboardingChecklist
+                canManage={memberRole === 'owner' || isImpersonating}
+                onNavigate={handleDashboardNavigate}
+                projectId={projectId}
+                projectName={projectDisplayName}
+              />
+            ) : null}
+
             <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
               <TabsContent value="kpis" className="mt-0">
                 <KPIsTab projectId={projectId} />
@@ -497,6 +508,9 @@ const RestaurantDashboard = ({ impersonatedProjectId = null, impersonationExitHr
               </TabsContent>
               <TabsContent value="wallet" className="mt-0">
                 <WalletConfigTab projectId={projectId} />
+              </TabsContent>
+              <TabsContent value="materiais" className="mt-0">
+                {activeTab === 'materiais' ? <MaterialsTab projectId={projectId} /> : null}
               </TabsContent>
               <TabsContent value="rewards" className="mt-0">
                 <RewardsTab

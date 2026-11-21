@@ -1,4 +1,4 @@
-import { BarChart3, Bell, Gift, History, ScanLine, Send, Settings2, Users, Wallet } from 'lucide-react';
+import { BarChart3, Bell, Gift, History, Megaphone, ScanLine, Send, Settings2, Users, Wallet } from 'lucide-react';
 
 export const SUPPORT_MESSAGE = 'Olá, preciso de suporte no Allin Pass.';
 
@@ -23,6 +23,7 @@ export const DASHBOARD_TABS = [
   { value: 'kpis', label: 'KPIs', icon: BarChart3 },
   { value: 'scanner', label: 'Scanner', icon: ScanLine },
   { value: 'wallet', label: 'Cartões', icon: Wallet },
+  { value: 'materiais', label: 'Materiais', icon: Megaphone },
   { value: 'notifications', label: 'Notificações', icon: Bell, children: NOTIFICATION_SUBTABS },
   { value: 'rewards', label: 'Recompensas', icon: Gift, children: REWARD_SUBTABS },
   { value: 'customers', label: 'Clientes', icon: Users },
