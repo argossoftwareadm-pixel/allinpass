@@ -15,6 +15,22 @@ export default function WalletClaimCard() {
   const [claimTitle, setClaimTitle] = useState(FALLBACK_CLAIM_TITLE);
   const [previewMessage, setPreviewMessage] = useState('');
   const [isClaimUnavailable, setIsClaimUnavailable] = useState(false);
+  const [branding, setBranding] = useState(null);
+  const [brandingLoaded, setBrandingLoaded] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    setBranding(null);
+    setBrandingLoaded(false);
+    if (!c) { setBrandingLoaded(true); return undefined; }
+    const timer = setTimeout(() => active && setBrandingLoaded(true), 2500);
+    supabase.rpc('fn_public_claim_branding', { p_code: c }).then(({ data, error }) => {
+      if (!active) return;
+      if (!error && data) setBranding(data);
+      setBrandingLoaded(true);
+    }, () => active && setBrandingLoaded(true));
+    return () => { active = false; clearTimeout(timer); };
+  }, [c]);
 
   useEffect(() => {
     let cancelled = false;
@@ -119,6 +135,101 @@ export default function WalletClaimCard() {
     }
   };
 
+  const brandBg = /^#[0-9a-f]{6}$/i.test(branding?.background || '') ? branding.background : null;
+  const brandFg = /^#[0-9a-f]{6}$/i.test(branding?.text || '') ? branding.text : '#ffffff';
+  const rewardsList = Array.isArray(branding?.rewards) ? branding.rewards : [];
+  const money = (cents) => (Number(cents || 0) / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+  const googleButton = (
+    <Button
+      size="lg"
+      className="relative mt-7 h-16 w-full rounded-full border border-black/5 bg-white text-lg font-semibold text-slate-900 shadow-[0_16px_40px_rgba(0,0,0,0.25)] transition-all hover:-translate-y-0.5 hover:bg-white hover:shadow-[0_20px_50px_rgba(0,0,0,0.3)]"
+      onClick={handleLogin}
+      disabled={isClaimUnavailable}
+    >
+      <span className="mr-3 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white">
+        <img
+          src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg"
+          alt="Google"
+          className="h-5 w-5"
+        />
+      </span>
+      <span>{isClaimUnavailable ? 'Link indisponível' : 'Salvar meu cartão'}</span>
+    </Button>
+  );
+
+  const allinpassSeal = (
+    <a
+      href="https://allinpass.com.br/?utm_source=pagina_resgate&utm_medium=selo"
+      target="_blank"
+      rel="noopener noreferrer"
+      className="mt-6 flex items-center justify-center gap-1.5 text-xs text-slate-500 transition hover:text-slate-700"
+    >
+      Programa de fidelidade feito com <strong className="font-semibold text-[#7046EA]">AllinPass</strong>
+    </a>
+  );
+
+  if (!brandingLoaded) {
+    return <div className="min-h-screen w-full bg-[#f6f6f8]" />;
+  }
+
+  if (brandBg) {
+    return (
+      <div className="relative min-h-screen w-full overflow-hidden px-4 py-8 sm:px-6" style={{ background: `linear-gradient(180deg, ${brandBg}22 0%, #f6f6f8 55%)` }}>
+        <div className="relative mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-md flex-col items-center justify-center">
+          <motion.div
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.55 }}
+            className="relative w-full overflow-hidden rounded-[2rem] shadow-[0_30px_80px_rgba(0,0,0,0.25)]"
+            style={{ background: brandBg, color: brandFg }}
+          >
+            {branding?.hero ? (
+              <img src={branding.hero} alt="" className="aspect-[3/1] w-full object-cover" />
+            ) : null}
+            <div className="px-6 pb-7 pt-7 sm:px-8">
+              {branding?.logo ? (
+                <div className={`mx-auto flex w-fit items-center justify-center rounded-2xl bg-white p-2 shadow-lg ${branding?.hero ? '-mt-16' : ''}`}>
+                  <img src={branding.logo} alt={branding?.project_name || ''} className="h-20 max-w-[180px] object-contain" />
+                </div>
+              ) : null}
+
+              <div className="mt-5 space-y-2 text-center">
+                <p className="text-sm font-medium opacity-80">{branding?.project_name}</p>
+                <h1 className="text-3xl font-bold leading-tight tracking-tight">{claimTitle}</h1>
+                <p className="mx-auto max-w-xs text-sm leading-relaxed opacity-90">
+                  {branding?.pass_type === 'value'
+                    ? 'Acumule saldo a cada compra e troque por recompensas.'
+                    : 'Ganhe pontos a cada visita e troque por recompensas.'}
+                </p>
+                {previewMessage ? <p className="mx-auto max-w-xs text-xs leading-relaxed opacity-75">{previewMessage}</p> : null}
+              </div>
+
+              {rewardsList.length ? (
+                <div className="mt-6 space-y-2">
+                  {rewardsList.map((r) => (
+                    <div
+                      key={`${r.name}-${r.points ?? r.value_cents}`}
+                      className="flex items-center justify-between gap-3 rounded-2xl px-4 py-3 text-sm"
+                      style={{ border: `1.5px solid ${brandFg}55`, background: `${brandFg}12` }}
+                    >
+                      <span className="font-bold">{r.type === 'value' ? money(r.value_cents) : `${r.points} ${r.points === 1 ? 'ponto' : 'pontos'}`}</span>
+                      <span className="text-right">{r.name}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+
+              {googleButton}
+              <p className="mt-3 text-center text-xs opacity-80">O cartão vai para a carteira do seu celular (Apple ou Google). Não precisa baixar aplicativo.</p>
+            </div>
+          </motion.div>
+          {allinpassSeal}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="relative min-h-screen w-full overflow-hidden bg-[#eef1ff] px-4 py-8 sm:px-6">
       <div className="pointer-events-none absolute inset-0">
@@ -176,6 +287,7 @@ export default function WalletClaimCard() {
 
           <p className="mt-4 text-center text-sm text-violet-100/90">Leva menos de 5 segundos</p>
         </motion.div>
+        <div className="absolute bottom-0 left-0 right-0">{allinpassSeal}</div>
       </div>
     </div>
   );

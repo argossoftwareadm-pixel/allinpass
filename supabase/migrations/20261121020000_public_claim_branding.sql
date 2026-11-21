@@ -1,0 +1,1 @@
+-- Aplicada via MCP: fn_public_claim_branding(p_code) (anon) — logo, cores, capa e até 4 recompensas ativas do cartão para a página de resgate.

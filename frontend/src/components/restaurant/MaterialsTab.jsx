@@ -230,7 +230,7 @@ export default function MaterialsTab({ projectId }) {
             <p className="mb-2 text-sm font-semibold">Formato</p>
             <div className="grid gap-2 sm:grid-cols-3">
               {FORMATS.map((f) => (
-                <button key={f.id} type="button" onClick={() => setFormatId(f.id)} className={`rounded-xl border p-3 text-left text-sm transition ${f.id === formatId ? 'border-purple-500 bg-purple-50 ring-2 ring-purple-200' : 'border-border hover:border-purple-300'}`}>
+                <button key={f.id} type="button" onClick={() => setFormatId(f.id)} className={`rounded-xl border p-3 text-left text-sm transition ${f.id === formatId ? 'border-purple-500 bg-purple-50 ring-2 ring-purple-200 dark:bg-purple-950/50 dark:ring-purple-800' : 'border-border hover:border-purple-300'}`}>
                   <p className="font-semibold">{f.label}</p>
                   <p className="mt-1 text-xs text-muted-foreground">{f.hint}</p>
                 </button>
@@ -239,7 +239,7 @@ export default function MaterialsTab({ projectId }) {
           </div>
 
           {!passRewards.length ? (
-            <p className="rounded-lg bg-amber-50 p-3 text-xs text-amber-900">Cadastre uma recompensa ativa para ela aparecer no material. Clientes voltam mais quando sabem o que vão ganhar.</p>
+            <p className="rounded-lg bg-amber-50 p-3 text-xs text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">Cadastre uma recompensa ativa para ela aparecer no material. Clientes voltam mais quando sabem o que vão ganhar.</p>
           ) : null}
 
           <div className="flex flex-wrap gap-2">

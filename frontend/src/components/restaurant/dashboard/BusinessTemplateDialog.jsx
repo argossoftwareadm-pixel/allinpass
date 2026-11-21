@@ -92,7 +92,7 @@ export default function BusinessTemplateDialog({ open, onOpenChange, projectId, 
 
         {result ? (
           <div className="space-y-4">
-            <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200">
               <p className="font-semibold">Modelo aplicado!</p>
               <ul className="mt-2 list-disc space-y-1 pl-5">
                 {result.rewardsCreated.map((r) => <li key={r}>Recompensa criada: {r}</li>)}
@@ -122,7 +122,7 @@ export default function BusinessTemplateDialog({ open, onOpenChange, projectId, 
                   key={t.id}
                   type="button"
                   onClick={() => setSelected(t.id)}
-                  className={`rounded-xl border p-4 text-left transition ${selected === t.id ? 'border-purple-500 bg-purple-50 ring-2 ring-purple-200' : 'border-border hover:border-purple-300'}`}
+                  className={`rounded-xl border p-4 text-left transition ${selected === t.id ? 'border-purple-500 bg-purple-50 ring-2 ring-purple-200 dark:bg-purple-950/50 dark:ring-purple-800' : 'border-border hover:border-purple-300'}`}
                 >
                   <p className="flex items-center justify-between font-semibold">
                     {t.label}

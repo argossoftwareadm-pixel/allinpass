@@ -7,6 +7,7 @@ import {
   Loader2,
   Plus,
   ScanLine,
+  Trash2,
   Video,
   VideoOff,
   XCircle,
@@ -21,6 +22,16 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Tooltip,
   TooltipContent,
@@ -243,6 +254,8 @@ export default function RewardsTab({ activeTab = "rewards", canManageRewards = t
   const [isCreating, setIsCreating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [updatingRewardId, setUpdatingRewardId] = useState(null);
+  const [rewardToDelete, setRewardToDelete] = useState(null);
+  const [deletingRewardId, setDeletingRewardId] = useState(null);
   const activeSubTab = activeTab === "history" ? "history" : "rewards";
 
   const [name, setName] = useState("");
@@ -473,6 +486,30 @@ export default function RewardsTab({ activeTab = "rewards", canManageRewards = t
     }
   }
 
+  async function deleteReward(reward) {
+    if (!canManageRewards || !reward?.id) return;
+    setDeletingRewardId(reward.id);
+    try {
+      const { error } = await supabase
+        .from("rewards")
+        .delete()
+        .eq("id", reward.id)
+        .eq("project_id", projectId);
+      if (error) throw error;
+      setRewards((prev) => prev.filter((item) => item.id !== reward.id));
+      toast({ title: "Recompensa excluída", description: "O histórico de resgates dela continua guardado." });
+    } catch (err) {
+      toast({
+        variant: "destructive",
+        title: "Erro ao excluir recompensa",
+        description: err?.message || "Não foi possível excluir.",
+      });
+    } finally {
+      setDeletingRewardId(null);
+      setRewardToDelete(null);
+    }
+  }
+
   async function toggleRewardStatus(reward) {
     if (!canManageRewards || !reward?.id) return;
 
@@ -675,6 +712,25 @@ export default function RewardsTab({ activeTab = "rewards", canManageRewards = t
 
   return (
     <div className="space-y-4">
+      <AlertDialog open={Boolean(rewardToDelete)} onOpenChange={(open) => { if (!open) setRewardToDelete(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir "{rewardToDelete?.name}"?</AlertDialogTitle>
+            <AlertDialogDescription>
+              A recompensa some da lista e não poderá mais ser resgatada. Não dá para desfazer. Os resgates que já aconteceram continuam no histórico. Se quiser só pausar, use o botão On/Off.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 text-white hover:bg-red-700"
+              onClick={() => rewardToDelete && deleteReward(rewardToDelete)}
+            >
+              Excluir de vez
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {canManageRewards && isCreating && (
         <motion.div
@@ -844,7 +900,7 @@ export default function RewardsTab({ activeTab = "rewards", canManageRewards = t
                     <th className="px-4 py-3">Custo</th>
                     <th className="px-4 py-3">Status</th>
                     <th className="px-4 py-3">
-                      <div className="ml-auto w-[220px] text-center">Ações</div>
+                      <div className="ml-auto w-[260px] text-center">Ações</div>
                     </th>
                   </tr>
                 </thead>
@@ -929,6 +985,19 @@ export default function RewardsTab({ activeTab = "rewards", canManageRewards = t
                                 <ScanLine className="h-4 w-4" />
                                 Resgatar
                               </Button>
+                              {canManageRewards ? (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => setRewardToDelete(reward)}
+                                  disabled={deletingRewardId === reward.id}
+                                  aria-label={`Excluir ${reward.name}`}
+                                  title="Excluir recompensa"
+                                  className="text-red-600 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-950/40"
+                                >
+                                  {deletingRewardId === reward.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                                </Button>
+                              ) : null}
                             </div>
                           </td>
                         </tr>

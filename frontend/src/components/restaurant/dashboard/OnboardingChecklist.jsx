@@ -112,39 +112,39 @@ export default function OnboardingChecklist({ projectId, projectName, canManage,
         type="button"
         onClick={() => setCollapsed(false)}
         title="Mostrar primeiros passos"
-        className="mb-6 flex w-full flex-wrap items-center gap-3 rounded-2xl border border-purple-200 bg-purple-50 px-4 py-2 text-left shadow-sm transition hover:border-purple-300"
+        className="mb-6 flex w-full flex-wrap items-center gap-3 rounded-2xl border border-purple-200 bg-purple-50 px-4 py-2 dark:border-purple-500/30 dark:bg-purple-950/50 dark:hover:border-purple-400/60 text-left shadow-sm transition hover:border-purple-300"
       >
-        <span className="flex items-center gap-2 text-sm font-semibold text-purple-900"><Sparkles className="h-4 w-4" /> Primeiros passos</span>
+        <span className="flex items-center gap-2 text-sm font-semibold text-purple-900 dark:text-purple-100"><Sparkles className="h-4 w-4" /> Primeiros passos</span>
         <span className="flex items-center gap-1">
           {steps.map((step) => (step.done
             ? <CheckCircle2 key={step.id} className="h-4 w-4 text-emerald-500" />
-            : <Circle key={step.id} className="h-4 w-4 text-purple-200" />))}
+            : <Circle key={step.id} className="h-4 w-4 text-purple-200 dark:text-purple-700 dark:text-purple-300" />))}
         </span>
-        <span className="text-sm font-semibold text-purple-900">{doneCount}/{steps.length}</span>
-        <Maximize2 className="ml-auto h-4 w-4 text-purple-700" />
+        <span className="text-sm font-semibold text-purple-900 dark:text-purple-100">{doneCount}/{steps.length}</span>
+        <Maximize2 className="ml-auto h-4 w-4 text-purple-700 dark:text-purple-300" />
       </button>
     );
   }
 
   return (
-    <div className="mb-6 rounded-2xl border border-purple-200 bg-gradient-to-br from-purple-50 to-white p-5 shadow-sm">
+    <div className="mb-6 rounded-2xl border border-purple-200 bg-gradient-to-br from-purple-50 to-white p-5 dark:border-purple-500/30 dark:from-purple-950/50 dark:to-card shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="flex items-center gap-2 font-semibold text-purple-900"><Sparkles className="h-4 w-4" /> Primeiros passos</p>
+          <p className="flex items-center gap-2 font-semibold text-purple-900 dark:text-purple-100"><Sparkles className="h-4 w-4" /> Primeiros passos</p>
           <p className="text-sm text-muted-foreground">{doneCount} de {steps.length} concluídos. Complete para ter seu programa rodando.</p>
         </div>
-        <Button size="sm" variant="ghost" onClick={() => setCollapsed(true)} title="Minimizar" aria-label="Minimizar primeiros passos">
+        <Button size="sm" variant="outline" className="border-purple-300 bg-white/70 text-purple-800 hover:bg-purple-100 dark:border-purple-500/50 dark:bg-transparent dark:text-purple-100 dark:hover:bg-purple-900/50" onClick={() => setCollapsed(true)} title="Minimizar" aria-label="Minimizar primeiros passos">
           <Minimize2 className="mr-1 h-4 w-4" /> Minimizar
         </Button>
       </div>
-      <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-purple-100">
+      <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-purple-100 dark:bg-purple-900/60">
         <div className="h-full rounded-full bg-purple-600 transition-all" style={{ width: `${progress}%` }} />
       </div>
       {canManage ? <p className="mt-2 text-xs text-muted-foreground">Já fez algum passo por fora? Clique no círculo para marcar como feito.</p> : null}
       {!collapsed ? (
         <ul className="mt-4 space-y-2">
           {steps.map((step) => (
-            <li key={step.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-white/70 px-3 py-2">
+            <li key={step.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-white/70 px-3 py-2 dark:bg-white/5">
               <div className="flex items-start gap-3">
                 <button
                   type="button"
@@ -154,7 +154,7 @@ export default function OnboardingChecklist({ projectId, projectName, canManage,
                   aria-label={step.done ? `Desmarcar: ${step.label}` : `Marcar como feito: ${step.label}`}
                   className="mt-0.5 rounded-full transition enabled:hover:scale-110 disabled:cursor-default"
                 >
-                  {step.done ? <CheckCircle2 className="h-5 w-5 text-emerald-500" /> : <Circle className="h-5 w-5 text-gray-300 hover:text-emerald-400" />}
+                  {step.done ? <CheckCircle2 className="h-5 w-5 text-emerald-500" /> : <Circle className="h-5 w-5 text-gray-300 hover:text-emerald-400 dark:text-gray-600" />}
                 </button>
                 <div>
                   <p className={`text-sm font-medium ${step.done ? 'text-muted-foreground line-through' : ''}`}>{step.label}</p>
